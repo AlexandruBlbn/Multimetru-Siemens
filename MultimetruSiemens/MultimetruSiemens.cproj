@@ -128,6 +128,12 @@
     <Compile Include="Config\uart.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="LCD\LCD.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="LCD\LCD.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="main.c">
       <SubType>compile</SubType>
     </Compile>
@@ -141,6 +147,7 @@
   <ItemGroup>
     <Folder Include="Config" />
     <Folder Include="MAX30102" />
+    <Folder Include="LCD" />
   </ItemGroup>
   <Import Project="$(AVRSTUDIO_EXE_PATH)\\Vs\\Compiler.targets" />
 </Project>
