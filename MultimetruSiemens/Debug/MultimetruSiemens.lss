@@ -19,15 +19,15 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, READONLY, DEBUGGING
   7 .debug_abbrev 000011ae  00000000  00000000  00004875  2**0
                   CONTENTS, READONLY, DEBUGGING
-  8 .debug_line   000011f2  00000000  00000000  00005a23  2**0
+  8 .debug_line   000011f6  00000000  00000000  00005a23  2**0
                   CONTENTS, READONLY, DEBUGGING
-  9 .debug_frame  00000330  00000000  00000000  00006c18  2**2
+  9 .debug_frame  00000330  00000000  00000000  00006c1c  2**2
                   CONTENTS, READONLY, DEBUGGING
- 10 .debug_str    00000a30  00000000  00000000  00006f48  2**0
+ 10 .debug_str    00000a77  00000000  00000000  00006f4c  2**0
                   CONTENTS, READONLY, DEBUGGING
- 11 .debug_loc    000013c1  00000000  00000000  00007978  2**0
+ 11 .debug_loc    000013c1  00000000  00000000  000079c3  2**0
                   CONTENTS, READONLY, DEBUGGING
- 12 .debug_ranges 00000188  00000000  00000000  00008d39  2**0
+ 12 .debug_ranges 00000188  00000000  00000000  00008d84  2**0
                   CONTENTS, READONLY, DEBUGGING
 
 Disassembly of section .text:
@@ -438,15 +438,15 @@ Disassembly of section .text:
      2e2:	08 95       	ret
 
 000002e4 <LCD_SetCursor>:
+}
+
+void LCD_Home(void) {
     LCD_SendCommand(LCD_HOME);
     _delay_ms(5);  // Home command needs more time
 }
-
-void LCD_SetCursor(uint8_t row, uint8_t col) {
-    uint8_t addr = (row == 0) ? col : (0x40 + col);
      2e4:	81 11       	cpse	r24, r1
      2e6:	60 5c       	subi	r22, 0xC0	; 192
-    LCD_SendCommand(0x80 | addr);
+
      2e8:	86 2f       	mov	r24, r22
      2ea:	80 68       	ori	r24, 0x80	; 128
      2ec:	5b cf       	rjmp	.-330    	; 0x1a4 <LCD_SendCommand>
@@ -517,23 +517,23 @@ void AVR_init(void){
 
 0000033e <main>:
      33e:	d8 df       	rcall	.-80     	; 0x2f0 <AVR_init>
+	int optiune = 1;
 	
-
+	//TODO: meniu cu intreruperi pt functii.
 
     while(1) {
-		if(optiune == 1){
-			    MAX30102_Start();
+		MAX30102_Start();
      340:	a2 d3       	rcall	.+1860   	; 0xa86 <MAX30102_Start>
      342:	fe cf       	rjmp	.-4      	; 0x340 <main+0x2>
 
 00000344 <max30102_write_reg>:
      344:	94 ea       	ldi	r25, 0xA4	; 164
-    
-    uint32_t ir = ((uint32_t)buffer[3] << 16) | ((uint32_t)buffer[4] << 8) | buffer[5];
-    ir &= 0x3FFFF;
-    
-    return ir;
+    return max30102_read_reg(MAX30102_FIFOREADPTR);
 }
+
+// max30102_get_write_ptr - obtine pozitia pointerului de scriere in FIFO
+// Returnare: pozitia pointerului (0-31)
+// Citeste registrul MAX30102_FIFOWRITEPTR
      346:	90 93 bc 00 	sts	0x00BC, r25	; 0x8000bc <__TEXT_REGION_LENGTH__+0x7c00bc>
      34a:	90 91 bc 00 	lds	r25, 0x00BC	; 0x8000bc <__TEXT_REGION_LENGTH__+0x7c00bc>
      34e:	99 23       	and	r25, r25
@@ -931,41 +931,41 @@ void AVR_init(void){
      6ba:	08 95       	ret
 
 000006bc <timer_init>:
-
-//-----------------------------
-//functii de timer cu incrementare la fiecare 1ms.
-//prescaler folosit 64 - 16mhz/64 - 250khz, 250khz/250 = 1ms - perioada de 1ms
-void timer_init(void) {
-	TCCR1B = (1 << WGM12) | (1 << CS11) | (1 << CS10);
+// Parametri: red (pointer la valoare red), ir (pointer la valoare infrarosu)
+// Citeste 6 bytes din FIFO: bytes 0-2 (red), bytes 3-5 (infrarosu)
+// Mascare la 18 biti (0x3FFFF) deoarece senzorul foloseste 18 biti
+void max30102_read_sample(uint32_t *red, uint32_t *ir) {
+    uint8_t buffer[6];
+    max30102_read_fifo(buffer, 6);
      6bc:	8b e0       	ldi	r24, 0x0B	; 11
      6be:	80 93 81 00 	sts	0x0081, r24	; 0x800081 <__TEXT_REGION_LENGTH__+0x7c0081>
-	OCR1A = 249;
+    
      6c2:	89 ef       	ldi	r24, 0xF9	; 249
      6c4:	90 e0       	ldi	r25, 0x00	; 0
      6c6:	90 93 89 00 	sts	0x0089, r25	; 0x800089 <__TEXT_REGION_LENGTH__+0x7c0089>
      6ca:	80 93 88 00 	sts	0x0088, r24	; 0x800088 <__TEXT_REGION_LENGTH__+0x7c0088>
-	TIMSK1 = (1 << OCIE1A);
+    *red = ((uint32_t)buffer[0] << 16) | ((uint32_t)buffer[1] << 8) | buffer[2];
      6ce:	82 e0       	ldi	r24, 0x02	; 2
      6d0:	80 93 6f 00 	sts	0x006F, r24	; 0x80006f <__TEXT_REGION_LENGTH__+0x7c006f>
-	sei();
+    *red &= 0x3FFFF;
      6d4:	78 94       	sei
      6d6:	08 95       	ret
 
 000006d8 <millis>:
+    
+    *ir = ((uint32_t)buffer[3] << 16) | ((uint32_t)buffer[4] << 8) | buffer[5];
+    *ir &= 0x3FFFF;
 }
-
-unsigned long millis(void) {
-	return millisCounter;
      6d8:	60 91 9e 02 	lds	r22, 0x029E	; 0x80029e <__data_end>
      6dc:	70 91 9f 02 	lds	r23, 0x029F	; 0x80029f <__data_end+0x1>
      6e0:	80 91 a0 02 	lds	r24, 0x02A0	; 0x8002a0 <__data_end+0x2>
      6e4:	90 91 a1 02 	lds	r25, 0x02A1	; 0x8002a1 <__data_end+0x3>
-}
+
      6e8:	08 95       	ret
 
 000006ea <__vector_17>:
-
-ISR(TIMER1_COMPA_vect) {
+// max30102_get_red - obtine doar valoarea LED-ului rosu din FIFO
+// Returnare: valoare red pe 18 biti
      6ea:	1f 92       	push	r1
      6ec:	0f 92       	push	r0
      6ee:	0f b6       	in	r0, 0x3f	; 63
@@ -975,7 +975,7 @@ ISR(TIMER1_COMPA_vect) {
      6f6:	9f 93       	push	r25
      6f8:	af 93       	push	r26
      6fa:	bf 93       	push	r27
-	millisCounter++;
+// Citeste 6 bytes si extrage primii 3 pentru red
      6fc:	80 91 9e 02 	lds	r24, 0x029E	; 0x80029e <__data_end>
      700:	90 91 9f 02 	lds	r25, 0x029F	; 0x80029f <__data_end+0x1>
      704:	a0 91 a0 02 	lds	r26, 0x02A0	; 0x8002a0 <__data_end+0x2>
@@ -987,7 +987,7 @@ ISR(TIMER1_COMPA_vect) {
      716:	90 93 9f 02 	sts	0x029F, r25	; 0x80029f <__data_end+0x1>
      71a:	a0 93 a0 02 	sts	0x02A0, r26	; 0x8002a0 <__data_end+0x2>
      71e:	b0 93 a1 02 	sts	0x02A1, r27	; 0x8002a1 <__data_end+0x3>
-}
+uint32_t max30102_get_red(void) {
      722:	bf 91       	pop	r27
      724:	af 91       	pop	r26
      726:	9f 91       	pop	r25
@@ -999,12 +999,12 @@ ISR(TIMER1_COMPA_vect) {
      732:	18 95       	reti
 
 00000734 <calculateSpO2>:
-//bpm = 60.000ms / intervalul dintre batai in ms
-
-//-----------------------------
-
-//Calcul Saturatie O2
-void calculateSpO2(void) {
+    max30102_read_fifo(buffer, 6);
+    //Comentariu
+    uint32_t red = ((uint32_t)buffer[0] << 16) | ((uint32_t)buffer[1] << 8) | buffer[2];
+    red &= 0x3FFFF;
+    
+    return red;si iti 
      734:	4f 92       	push	r4
      736:	5f 92       	push	r5
      738:	6f 92       	push	r6
@@ -1029,31 +1029,31 @@ void calculateSpO2(void) {
      75e:	de bf       	out	0x3e, r29	; 62
      760:	0f be       	out	0x3f, r0	; 63
      762:	cd bf       	out	0x3d, r28	; 61
-    uint32_t irMax = 0, irMin = 999999;
-    uint32_t redMax = 0, redMin = 999999;
-    unsigned long irSum = 0, redSum = 0;
-    
-    for (int i = 0; i < SPO2_BUFFER_SIZE; i++) {
+}
+
+// max30102_get_ir - obtine doar valoarea LED-ului infrarosu din FIFO
+// Returnare: valoare infrarosu pe 18 biti
+// Citeste 6 bytes si extrage ultimi 3 pentru infrarosu
      764:	80 e0       	ldi	r24, 0x00	; 0
      766:	90 e0       	ldi	r25, 0x00	; 0
+    red &= 0x3FFFF;
+    
+    return red;si iti 
+}
 
-//Calcul Saturatie O2
-void calculateSpO2(void) {
-    uint32_t irMax = 0, irMin = 999999;
-    uint32_t redMax = 0, redMin = 999999;
-    unsigned long irSum = 0, redSum = 0;
+// max30102_get_ir - obtine doar valoarea LED-ului infrarosu din FIFO
      768:	c1 2c       	mov	r12, r1
      76a:	d1 2c       	mov	r13, r1
      76c:	76 01       	movw	r14, r12
      76e:	81 2c       	mov	r8, r1
      770:	91 2c       	mov	r9, r1
      772:	54 01       	movw	r10, r8
-//-----------------------------
+    uint32_t red = ((uint32_t)buffer[0] << 16) | ((uint32_t)buffer[1] << 8) | buffer[2];
+    red &= 0x3FFFF;
+    
+    return red;si iti 
+}
 
-//Calcul Saturatie O2
-void calculateSpO2(void) {
-    uint32_t irMax = 0, irMin = 999999;
-    uint32_t redMax = 0, redMin = 999999;
      774:	0f 2e       	mov	r0, r31
      776:	ff e3       	ldi	r31, 0x3F	; 63
      778:	4f 2e       	mov	r4, r31
@@ -1067,12 +1067,12 @@ void calculateSpO2(void) {
      788:	1e 82       	std	Y+6, r1	; 0x06
      78a:	1f 82       	std	Y+7, r1	; 0x07
      78c:	18 86       	std	Y+8, r1	; 0x08
-
-//-----------------------------
-
-//Calcul Saturatie O2
-void calculateSpO2(void) {
-    uint32_t irMax = 0, irMin = 999999;
+    //Comentariu
+    uint32_t red = ((uint32_t)buffer[0] << 16) | ((uint32_t)buffer[1] << 8) | buffer[2];
+    red &= 0x3FFFF;
+    
+    return red;si iti 
+}
      78e:	2f e3       	ldi	r18, 0x3F	; 63
      790:	32 e4       	ldi	r19, 0x42	; 66
      792:	4f e0       	ldi	r20, 0x0F	; 15
@@ -1085,12 +1085,12 @@ void calculateSpO2(void) {
      7a0:	1a 82       	std	Y+2, r1	; 0x02
      7a2:	1b 82       	std	Y+3, r1	; 0x03
      7a4:	1c 82       	std	Y+4, r1	; 0x04
-    uint32_t redMax = 0, redMin = 999999;
-    unsigned long irSum = 0, redSum = 0;
-    
-    for (int i = 0; i < SPO2_BUFFER_SIZE; i++) {
+
+// max30102_get_ir - obtine doar valoarea LED-ului infrarosu din FIFO
+// Returnare: valoare infrarosu pe 18 biti
+// Citeste 6 bytes si extrage ultimi 3 pentru infrarosu
      7a6:	4d c0       	rjmp	.+154    	; 0x842 <calculateSpO2+0x10e>
-        if (irBuffer[i] > irMax) irMax = irBuffer[i];
+uint32_t max30102_get_ir(void) {
      7a8:	fc 01       	movw	r30, r24
      7aa:	ee 0f       	add	r30, r30
      7ac:	ff 1f       	adc	r31, r31
@@ -1115,7 +1115,7 @@ void calculateSpO2(void) {
      7d2:	1a 83       	std	Y+2, r17	; 0x02
      7d4:	2b 83       	std	Y+3, r18	; 0x03
      7d6:	3c 83       	std	Y+4, r19	; 0x04
-        if (irBuffer[i] < irMin) irMin = irBuffer[i];
+    uint8_t buffer[6];
      7d8:	49 85       	ldd	r20, Y+9	; 0x09
      7da:	5a 85       	ldd	r21, Y+10	; 0x0a
      7dc:	6b 85       	ldd	r22, Y+11	; 0x0b
@@ -1129,13 +1129,13 @@ void calculateSpO2(void) {
      7ec:	1a 87       	std	Y+10, r17	; 0x0a
      7ee:	2b 87       	std	Y+11, r18	; 0x0b
      7f0:	3c 87       	std	Y+12, r19	; 0x0c
-        irSum += irBuffer[i];
+    max30102_read_fifo(buffer, 6);
      7f2:	80 0e       	add	r8, r16
      7f4:	91 1e       	adc	r9, r17
      7f6:	a2 1e       	adc	r10, r18
      7f8:	b3 1e       	adc	r11, r19
-        
-        if (redBuffer[i] > redMax) redMax = redBuffer[i];
+    
+    uint32_t ir = ((uint32_t)buffer[3] << 16) | ((uint32_t)buffer[4] << 8) | buffer[5];
      7fa:	fc 01       	movw	r30, r24
      7fc:	ee 0f       	add	r30, r30
      7fe:	ff 1f       	adc	r31, r31
@@ -1160,7 +1160,7 @@ void calculateSpO2(void) {
      824:	1e 83       	std	Y+6, r17	; 0x06
      826:	2f 83       	std	Y+7, r18	; 0x07
      828:	38 87       	std	Y+8, r19	; 0x08
-        if (redBuffer[i] < redMin) redMin = redBuffer[i];
+    ir &= 0x3FFFF;
      82a:	04 15       	cp	r16, r4
      82c:	15 05       	cpc	r17, r5
      82e:	26 05       	cpc	r18, r6
@@ -1168,28 +1168,28 @@ void calculateSpO2(void) {
      832:	10 f4       	brcc	.+4      	; 0x838 <calculateSpO2+0x104>
      834:	28 01       	movw	r4, r16
      836:	39 01       	movw	r6, r18
-        redSum += redBuffer[i];
+    
      838:	c0 0e       	add	r12, r16
      83a:	d1 1e       	adc	r13, r17
      83c:	e2 1e       	adc	r14, r18
      83e:	f3 1e       	adc	r15, r19
-void calculateSpO2(void) {
-    uint32_t irMax = 0, irMin = 999999;
-    uint32_t redMax = 0, redMin = 999999;
-    unsigned long irSum = 0, redSum = 0;
-    
-    for (int i = 0; i < SPO2_BUFFER_SIZE; i++) {
+    return red;si iti 
+}
+
+// max30102_get_ir - obtine doar valoarea LED-ului infrarosu din FIFO
+// Returnare: valoare infrarosu pe 18 biti
+// Citeste 6 bytes si extrage ultimi 3 pentru infrarosu
      840:	01 96       	adiw	r24, 0x01	; 1
      842:	84 36       	cpi	r24, 0x64	; 100
      844:	91 05       	cpc	r25, r1
      846:	0c f4       	brge	.+2      	; 0x84a <calculateSpO2+0x116>
      848:	af cf       	rjmp	.-162    	; 0x7a8 <calculateSpO2+0x74>
-        if (redBuffer[i] > redMax) redMax = redBuffer[i];
-        if (redBuffer[i] < redMin) redMin = redBuffer[i];
-        redSum += redBuffer[i];
-    }
+    uint32_t ir = ((uint32_t)buffer[3] << 16) | ((uint32_t)buffer[4] << 8) | buffer[5];
+    ir &= 0x3FFFF;
     
-    float irAC = (float)(irMax - irMin);
+    return ir;
+}
+
      84a:	69 81       	ldd	r22, Y+1	; 0x01
      84c:	7a 81       	ldd	r23, Y+2	; 0x02
      84e:	8b 81       	ldd	r24, Y+3	; 0x03
@@ -1207,7 +1207,7 @@ void calculateSpO2(void) {
      866:	7a 83       	std	Y+2, r23	; 0x02
      868:	8b 83       	std	Y+3, r24	; 0x03
      86a:	9c 83       	std	Y+4, r25	; 0x04
-    float redAC = (float)(redMax - redMin);
+//sfarsit functii de baza.
      86c:	6d 81       	ldd	r22, Y+5	; 0x05
      86e:	7e 81       	ldd	r23, Y+6	; 0x06
      870:	8f 81       	ldd	r24, Y+7	; 0x07
@@ -1219,7 +1219,7 @@ void calculateSpO2(void) {
      87c:	5a d5       	rcall	.+2740   	; 0x1332 <__floatunsisf>
      87e:	2b 01       	movw	r4, r22
      880:	3c 01       	movw	r6, r24
-    float irDC = (float)irSum / (float)SPO2_BUFFER_SIZE;
+//======================================================================================================================
      882:	c5 01       	movw	r24, r10
      884:	b4 01       	movw	r22, r8
      886:	55 d5       	rcall	.+2730   	; 0x1332 <__floatunsisf>
@@ -1230,7 +1230,7 @@ void calculateSpO2(void) {
      890:	b7 d4       	rcall	.+2414   	; 0x1200 <__divsf3>
      892:	4b 01       	movw	r8, r22
      894:	5c 01       	movw	r10, r24
-    float redDC = (float)redSum / (float)SPO2_BUFFER_SIZE;
+// Functii de lucru intermediare si functii de calcul pentru valorile dorite
      896:	c7 01       	movw	r24, r14
      898:	b6 01       	movw	r22, r12
      89a:	4b d5       	rcall	.+2710   	; 0x1332 <__floatunsisf>
@@ -1242,8 +1242,8 @@ void calculateSpO2(void) {
      8a6:	6b 01       	movw	r12, r22
      8a8:	7c 01       	movw	r14, r24
      8aa:	20 e0       	ldi	r18, 0x00	; 0
-    
-    if (irDC != 0 && redDC != 0 && irAC != 0) {
+
+// Timer cu incrementare la fiecare 1ms
      8ac:	30 e0       	ldi	r19, 0x00	; 0
      8ae:	a9 01       	movw	r20, r18
      8b0:	c5 01       	movw	r24, r10
@@ -1273,7 +1273,7 @@ void calculateSpO2(void) {
      8e0:	09 f4       	brne	.+2      	; 0x8e4 <calculateSpO2+0x1b0>
      8e2:	5a c0       	rjmp	.+180    	; 0x998 <calculateSpO2+0x264>
      8e4:	a7 01       	movw	r20, r14
-        float redRatio = redAC / redDC;
+// Prescaler folosit: 64 -> 16MHz/64 = 250kHz, 250kHz/250 = 1ms perioada
      8e6:	96 01       	movw	r18, r12
      8e8:	c3 01       	movw	r24, r6
      8ea:	b2 01       	movw	r22, r4
@@ -1281,7 +1281,7 @@ void calculateSpO2(void) {
      8ee:	6b 01       	movw	r12, r22
      8f0:	7c 01       	movw	r14, r24
      8f2:	a5 01       	movw	r20, r10
-        float irRatio = irAC / irDC;
+// Registri: TCCR1B (mod CTC), OCR1A (perioada), TIMSK1 (intrerupere)
      8f4:	94 01       	movw	r18, r8
      8f6:	69 81       	ldd	r22, Y+1	; 0x01
      8f8:	7a 81       	ldd	r23, Y+2	; 0x02
@@ -1291,21 +1291,21 @@ void calculateSpO2(void) {
      900:	4b 01       	movw	r8, r22
      902:	5c 01       	movw	r10, r24
      904:	20 e0       	ldi	r18, 0x00	; 0
-        
-        if (irRatio != 0) {
+void timer_init(void) {
+	TCCR1B = (1 << WGM12) | (1 << CS11) | (1 << CS10);
      906:	30 e0       	ldi	r19, 0x00	; 0
      908:	a9 01       	movw	r20, r18
      90a:	76 d4       	rcall	.+2284   	; 0x11f8 <__cmpsf2>
      90c:	88 23       	and	r24, r24
      90e:	09 f4       	brne	.+2      	; 0x912 <calculateSpO2+0x1de>
      910:	43 c0       	rjmp	.+134    	; 0x998 <calculateSpO2+0x264>
-            float ratio = redRatio / irRatio;
+	OCR1A = 249;
      912:	a5 01       	movw	r20, r10
      914:	94 01       	movw	r18, r8
      916:	c7 01       	movw	r24, r14
      918:	b6 01       	movw	r22, r12
      91a:	72 d4       	rcall	.+2276   	; 0x1200 <__divsf3>
-            SpO2 = 104.0 - 17.0 * ratio;
+	TIMSK1 = (1 << OCIE1A);
      91c:	20 e0       	ldi	r18, 0x00	; 0
      91e:	30 e0       	ldi	r19, 0x00	; 0
      920:	48 e8       	ldi	r20, 0x88	; 136
@@ -1323,8 +1323,8 @@ void calculateSpO2(void) {
      93c:	80 93 a4 02 	sts	0x02A4, r24	; 0x8002a4 <SpO2+0x2>
      940:	90 93 a5 02 	sts	0x02A5, r25	; 0x8002a5 <SpO2+0x3>
      944:	20 e0       	ldi	r18, 0x00	; 0
-            
-            if (SpO2 > 100) SpO2 = 100;
+	sei();
+}
      946:	30 e0       	ldi	r19, 0x00	; 0
      948:	48 ec       	ldi	r20, 0xC8	; 200
      94a:	52 e4       	ldi	r21, 0x42	; 66
@@ -1340,7 +1340,7 @@ void calculateSpO2(void) {
      962:	a0 93 a4 02 	sts	0x02A4, r26	; 0x8002a4 <SpO2+0x2>
      966:	b0 93 a5 02 	sts	0x02A5, r27	; 0x8002a5 <SpO2+0x3>
      96a:	60 91 a2 02 	lds	r22, 0x02A2	; 0x8002a2 <SpO2>
-            if (SpO2 < 70) SpO2 = 0;
+
      96e:	70 91 a3 02 	lds	r23, 0x02A3	; 0x8002a3 <SpO2+0x1>
      972:	80 91 a4 02 	lds	r24, 0x02A4	; 0x8002a4 <SpO2+0x2>
      976:	90 91 a5 02 	lds	r25, 0x02A5	; 0x8002a5 <SpO2+0x3>
@@ -1357,9 +1357,9 @@ void calculateSpO2(void) {
      994:	10 92 a5 02 	sts	0x02A5, r1	; 0x8002a5 <SpO2+0x3>
      998:	2c 96       	adiw	r28, 0x0c	; 12
      99a:	0f b6       	in	r0, 0x3f	; 63
-        }
-    }
-}
+// millis - returneaza numarul de milisecunde de la pornire
+// Returnare: valoarea millisCounter (numara la fiecare intrerupere a timerului)
+unsigned long millis(void) {
      99c:	f8 94       	cli
      99e:	de bf       	out	0x3e, r29	; 62
      9a0:	0f be       	out	0x3f, r0	; 63
@@ -1384,63 +1384,63 @@ void calculateSpO2(void) {
 
 000009c6 <resetStats>:
      9c6:	10 92 c7 02 	sts	0x02C7, r1	; 0x8002c7 <beatsPerMinute>
+	return millisCounter;
+}
 
-//-----------------------------
-//reset bufferi pentru O2 si BPM
-void resetStats(void) {
-    beatsPerMinute = 0;
+// ISR(TIMER1_COMPA_vect) - rutina de intrerupere a timerului
+// Se executa la fiecare 1ms si incrementeaza millisCounter
      9ca:	10 92 c8 02 	sts	0x02C8, r1	; 0x8002c8 <beatsPerMinute+0x1>
      9ce:	10 92 c9 02 	sts	0x02C9, r1	; 0x8002c9 <beatsPerMinute+0x2>
      9d2:	10 92 ca 02 	sts	0x02CA, r1	; 0x8002ca <beatsPerMinute+0x3>
-    beatAvg = 0;
+// Aceasta functie este apelata automat de microcontroler
      9d6:	10 92 c6 02 	sts	0x02C6, r1	; 0x8002c6 <beatAvg+0x1>
      9da:	10 92 c5 02 	sts	0x02C5, r1	; 0x8002c5 <beatAvg>
-    beatCount = 0;
+ISR(TIMER1_COMPA_vect) {
      9de:	10 92 c4 02 	sts	0x02C4, r1	; 0x8002c4 <beatCount+0x1>
      9e2:	10 92 c3 02 	sts	0x02C3, r1	; 0x8002c3 <beatCount>
-    lastBeatTime = 0;
+	millisCounter++;
      9e6:	10 92 bf 02 	sts	0x02BF, r1	; 0x8002bf <lastBeatTime>
      9ea:	10 92 c0 02 	sts	0x02C0, r1	; 0x8002c0 <lastBeatTime+0x1>
      9ee:	10 92 c1 02 	sts	0x02C1, r1	; 0x8002c1 <lastBeatTime+0x2>
      9f2:	10 92 c2 02 	sts	0x02C2, r1	; 0x8002c2 <lastBeatTime+0x3>
-    rateSpot = 0;
+}
      9f6:	10 92 cb 02 	sts	0x02CB, r1	; 0x8002cb <rateSpot>
-    SpO2 = 0;
+
      9fa:	10 92 a2 02 	sts	0x02A2, r1	; 0x8002a2 <SpO2>
      9fe:	10 92 a3 02 	sts	0x02A3, r1	; 0x8002a3 <SpO2+0x1>
      a02:	10 92 a4 02 	sts	0x02A4, r1	; 0x8002a4 <SpO2+0x2>
      a06:	10 92 a5 02 	sts	0x02A5, r1	; 0x8002a5 <SpO2+0x3>
-    bufferIndex = 0;
+// Calcul BPM: beatsPerMinute = 60000ms / intervalul dintre batai in ms
      a0a:	10 92 a8 02 	sts	0x02A8, r1	; 0x8002a8 <bufferIndex+0x1>
      a0e:	10 92 a7 02 	sts	0x02A7, r1	; 0x8002a7 <bufferIndex>
-    bufferReady = 0;
+
      a12:	10 92 a6 02 	sts	0x02A6, r1	; 0x8002a6 <bufferReady>
-    
-    for (uint8_t x = 0; x < RATE_SIZE; x++) {
+// calculateSpO2 - calculeaza saturatia de oxigen (SpO2) din bufferele red si infrarosu
+// Foloseste bufferele irBuffer si redBuffer care contin SPO2_BUFFER_SIZE mostre
      a16:	80 e0       	ldi	r24, 0x00	; 0
      a18:	06 c0       	rjmp	.+12     	; 0xa26 <resetStats+0x60>
-        rates[x] = 0;
+// Algoritm: calculeaza AC/DC ratio pentru fiecare LED si determina SpO2
      a1a:	e8 2f       	mov	r30, r24
      a1c:	f0 e0       	ldi	r31, 0x00	; 0
      a1e:	e4 53       	subi	r30, 0x34	; 52
      a20:	fd 4f       	sbci	r31, 0xFD	; 253
      a22:	10 82       	st	Z, r1
-    rateSpot = 0;
-    SpO2 = 0;
-    bufferIndex = 0;
-    bufferReady = 0;
-    
-    for (uint8_t x = 0; x < RATE_SIZE; x++) {
+}
+
+// Calcul BPM: beatsPerMinute = 60000ms / intervalul dintre batai in ms
+
+// calculateSpO2 - calculeaza saturatia de oxigen (SpO2) din bufferele red si infrarosu
+// Foloseste bufferele irBuffer si redBuffer care contin SPO2_BUFFER_SIZE mostre
      a24:	8f 5f       	subi	r24, 0xFF	; 255
      a26:	84 30       	cpi	r24, 0x04	; 4
      a28:	c0 f3       	brcs	.-16     	; 0xa1a <resetStats+0x54>
      a2a:	20 e0       	ldi	r18, 0x00	; 0
      a2c:	30 e0       	ldi	r19, 0x00	; 0
      a2e:	15 c0       	rjmp	.+42     	; 0xa5a <resetStats+0x94>
-        rates[x] = 0;
-    }
-    for (int i = 0; i < SPO2_BUFFER_SIZE; i++) {
-        irBuffer[i] = 0;
+// Algoritm: calculeaza AC/DC ratio pentru fiecare LED si determina SpO2
+// Rezultat stocat in variabila globala SpO2
+void calculateSpO2(void) {
+    uint32_t irMax = 0, irMin = 999999;
      a30:	c9 01       	movw	r24, r18
      a32:	88 0f       	add	r24, r24
      a34:	99 1f       	adc	r25, r25
@@ -1453,7 +1453,7 @@ void resetStats(void) {
      a42:	11 82       	std	Z+1, r1	; 0x01
      a44:	12 82       	std	Z+2, r1	; 0x02
      a46:	13 82       	std	Z+3, r1	; 0x03
-        redBuffer[i] = 0;
+    uint32_t redMax = 0, redMin = 999999;
      a48:	fc 01       	movw	r30, r24
      a4a:	ec 58       	subi	r30, 0x8C	; 140
      a4c:	fb 4f       	sbci	r31, 0xFB	; 251
@@ -1461,12 +1461,12 @@ void resetStats(void) {
      a50:	11 82       	std	Z+1, r1	; 0x01
      a52:	12 82       	std	Z+2, r1	; 0x02
      a54:	13 82       	std	Z+3, r1	; 0x03
-    bufferReady = 0;
-    
-    for (uint8_t x = 0; x < RATE_SIZE; x++) {
-        rates[x] = 0;
-    }
-    for (int i = 0; i < SPO2_BUFFER_SIZE; i++) {
+
+// calculateSpO2 - calculeaza saturatia de oxigen (SpO2) din bufferele red si infrarosu
+// Foloseste bufferele irBuffer si redBuffer care contin SPO2_BUFFER_SIZE mostre
+// Algoritm: calculeaza AC/DC ratio pentru fiecare LED si determina SpO2
+// Rezultat stocat in variabila globala SpO2
+void calculateSpO2(void) {
      a56:	2f 5f       	subi	r18, 0xFF	; 255
      a58:	3f 4f       	sbci	r19, 0xFF	; 255
      a5a:	24 36       	cpi	r18, 0x64	; 100
@@ -1475,11 +1475,11 @@ void resetStats(void) {
      a60:	80 e0       	ldi	r24, 0x00	; 0
      a62:	90 e0       	ldi	r25, 0x00	; 0
      a64:	0c c0       	rjmp	.+24     	; 0xa7e <resetStats+0xb8>
-        irBuffer[i] = 0;
-        redBuffer[i] = 0;
-    }
-    for (int i = 0; i < AVG_SIZE; i++) {
-        irAvgBuffer[i] = 0;
+    uint32_t irMax = 0, irMin = 999999;
+    uint32_t redMax = 0, redMin = 999999;
+    unsigned long irSum = 0, redSum = 0;
+    
+    // Gaseste valori max, min si suma pentru ambele LED-uri
      a66:	fc 01       	movw	r30, r24
      a68:	ee 0f       	add	r30, r30
      a6a:	ff 1f       	adc	r31, r31
@@ -1491,27 +1491,27 @@ void resetStats(void) {
      a76:	11 82       	std	Z+1, r1	; 0x01
      a78:	12 82       	std	Z+2, r1	; 0x02
      a7a:	13 82       	std	Z+3, r1	; 0x03
-    }
-    for (int i = 0; i < SPO2_BUFFER_SIZE; i++) {
-        irBuffer[i] = 0;
-        redBuffer[i] = 0;
-    }
-    for (int i = 0; i < AVG_SIZE; i++) {
+// Rezultat stocat in variabila globala SpO2
+void calculateSpO2(void) {
+    uint32_t irMax = 0, irMin = 999999;
+    uint32_t redMax = 0, redMin = 999999;
+    unsigned long irSum = 0, redSum = 0;
+    
      a7c:	01 96       	adiw	r24, 0x01	; 1
      a7e:	85 30       	cpi	r24, 0x05	; 5
      a80:	91 05       	cpc	r25, r1
      a82:	8c f3       	brlt	.-30     	; 0xa66 <resetStats+0xa0>
-        irAvgBuffer[i] = 0;
-    }
-}
+    // Gaseste valori max, min si suma pentru ambele LED-uri
+    for (int i = 0; i < SPO2_BUFFER_SIZE; i++) {
+        if (irBuffer[i] > irMax) irMax = irBuffer[i];
      a84:	08 95       	ret
 
 00000a86 <MAX30102_Start>:
-//-----------------------------
-
-//Logica implementare functie senzor.
-
-void MAX30102_Start(void){
+        if (irBuffer[i] < irMin) irMin = irBuffer[i];
+        irSum += irBuffer[i];
+        
+        if (redBuffer[i] > redMax) redMax = redBuffer[i];
+        if (redBuffer[i] < redMin) redMin = redBuffer[i];
      a86:	cf 93       	push	r28
      a88:	df 93       	push	r29
      a8a:	cd b7       	in	r28, 0x3d	; 61
@@ -1522,41 +1522,41 @@ void MAX30102_Start(void){
      a94:	de bf       	out	0x3e, r29	; 62
      a96:	0f be       	out	0x3f, r0	; 63
      a98:	cd bf       	out	0x3d, r28	; 61
-    max30102_check();
+        redSum += redBuffer[i];
      a9a:	61 dd       	rcall	.-1342   	; 0x55e <max30102_check>
-    max30102_setup(40, SAMPLEAVG_4, SAMPLERATE_100, PULSEWIDTH_411, ADCRANGE_4096);
+    }
      a9c:	00 e2       	ldi	r16, 0x20	; 32
      a9e:	23 e0       	ldi	r18, 0x03	; 3
      aa0:	44 e0       	ldi	r20, 0x04	; 4
      aa2:	60 e4       	ldi	r22, 0x40	; 64
      aa4:	88 e2       	ldi	r24, 0x28	; 40
      aa6:	84 dd       	rcall	.-1272   	; 0x5b0 <max30102_setup>
-    max30102_write_reg(MAX30102_LED1_PULSEAMP, 0x1F);
+    
      aa8:	6f e1       	ldi	r22, 0x1F	; 31
      aaa:	8c e0       	ldi	r24, 0x0C	; 12
      aac:	4b dc       	rcall	.-1898   	; 0x344 <max30102_write_reg>
-    max30102_write_reg(MAX30102_LED2_PULSEAMP, 40);
+    // Calculeaza componente AC si DC
      aae:	68 e2       	ldi	r22, 0x28	; 40
      ab0:	8d e0       	ldi	r24, 0x0D	; 13
      ab2:	48 dc       	rcall	.-1904   	; 0x344 <max30102_write_reg>
-    
-    LCD_Clear();  // Curăță display-ul înainte de a scrie
+    float irAC = (float)(irMax - irMin);
+    float redAC = (float)(redMax - redMin);
      ab4:	0e dc       	rcall	.-2020   	; 0x2d2 <LCD_Clear>
      ab6:	60 e0       	ldi	r22, 0x00	; 0
-    LCD_SetCursor(0, 0);
+    float irDC = (float)irSum / (float)SPO2_BUFFER_SIZE;
      ab8:	80 e0       	ldi	r24, 0x00	; 0
      aba:	14 dc       	rcall	.-2008   	; 0x2e4 <LCD_SetCursor>
      abc:	82 e5       	ldi	r24, 0x52	; 82
-    LCD_WriteString("BPM: --         ");
+    float redDC = (float)redSum / (float)SPO2_BUFFER_SIZE;
      abe:	92 e0       	ldi	r25, 0x02	; 2
      ac0:	fc db       	rcall	.-2056   	; 0x2ba <LCD_WriteString>
      ac2:	60 e0       	ldi	r22, 0x00	; 0
-    LCD_SetCursor(1, 0);
+    
      ac4:	81 e0       	ldi	r24, 0x01	; 1
      ac6:	0e dc       	rcall	.-2020   	; 0x2e4 <LCD_SetCursor>
      ac8:	83 e6       	ldi	r24, 0x63	; 99
      aca:	92 e0       	ldi	r25, 0x02	; 2
-    LCD_WriteString("SpO2: --        ");
+    // Calculeaza SpO2 din ratios
      acc:	f6 db       	rcall	.-2068   	; 0x2ba <LCD_WriteString>
      ace:	2f ef       	ldi	r18, 0xFF	; 255
      ad0:	47 ea       	ldi	r20, 0xA7	; 167
@@ -1598,23 +1598,23 @@ static inline void uart_puts(const char *str) {
      af6:	81 11       	cpse	r24, r1
      af8:	f6 cf       	rjmp	.-20     	; 0xae6 <MAX30102_Start+0x60>
      afa:	65 df       	rcall	.-310    	; 0x9c6 <resetStats>
-    
-    _delay_ms(2000);
-    uart_puts("Astept deget\r\n");
-    resetStats();
+    if (irDC != 0 && redDC != 0 && irAC != 0) {
+        float redRatio = redAC / redDC;
+        float irRatio = irAC / irDC;
+        
      afc:	82 dd       	rcall	.-1276   	; 0x602 <max30102_get_read_ptr>
      afe:	18 2f       	mov	r17, r24
-    
-    while(1) {
-        uint8_t readPtr = max30102_get_read_ptr();
+        if (irRatio != 0) {
+            float ratio = redRatio / irRatio;
+            SpO2 = 104.0 - 17.0 * ratio;
      b00:	83 dd       	rcall	.-1274   	; 0x608 <max30102_get_write_ptr>
      b02:	18 13       	cpse	r17, r24
      b04:	07 c0       	rjmp	.+14     	; 0xb14 <MAX30102_Start+0x8e>
-        uint8_t writePtr = max30102_get_write_ptr();
+            
      b06:	8f e9       	ldi	r24, 0x9F	; 159
      b08:	9f e0       	ldi	r25, 0x0F	; 15
-        
-        if (readPtr == writePtr) {
+            if (SpO2 > 100) SpO2 = 100;
+            if (SpO2 < 70) SpO2 = 0;
      b0a:	01 97       	sbiw	r24, 0x01	; 1
      b0c:	f1 f7       	brne	.-4      	; 0xb0a <MAX30102_Start+0x84>
      b0e:	00 c0       	rjmp	.+0      	; 0xb10 <MAX30102_Start+0x8a>
@@ -1622,13 +1622,13 @@ static inline void uart_puts(const char *str) {
      b12:	f4 cf       	rjmp	.-24     	; 0xafc <MAX30102_Start+0x76>
      b14:	be 01       	movw	r22, r28
      b16:	69 5c       	subi	r22, 0xC9	; 201
-            _delay_ms(1);
-            continue;
-     b18:	7f 4f       	sbci	r23, 0xFF	; 255
         }
-        
-        uint32_t redValue, irValue32;
-        max30102_read_sample(&redValue, &irValue32);
+    }
+     b18:	7f 4f       	sbci	r23, 0xFF	; 255
+}
+
+// resetStats - reseteaza toti buferii si variabilele de calcul
+// Goleste: rates[], irBuffer[], redBuffer[], irAvgBuffer[]
      b1a:	ce 01       	movw	r24, r28
      b1c:	cb 96       	adiw	r24, 0x3b	; 59
      b1e:	77 dd       	rcall	.-1298   	; 0x60e <max30102_read_sample>
@@ -1636,7 +1636,7 @@ static inline void uart_puts(const char *str) {
      b22:	58 ad       	ldd	r21, Y+56	; 0x38
      b24:	69 ad       	ldd	r22, Y+57	; 0x39
      b26:	7a ad       	ldd	r23, Y+58	; 0x3a
-        irValue = (long)irValue32;
+// Reseteaza: beatsPerMinute, beatAvg, beatCount, SpO2, etc.
      b28:	40 93 bb 02 	sts	0x02BB, r20	; 0x8002bb <irValue>
      b2c:	50 93 bc 02 	sts	0x02BC, r21	; 0x8002bc <irValue+0x1>
      b30:	60 93 bd 02 	sts	0x02BD, r22	; 0x8002bd <irValue+0x2>
@@ -1644,16 +1644,16 @@ static inline void uart_puts(const char *str) {
      b38:	40 35       	cpi	r20, 0x50	; 80
      b3a:	93 ec       	ldi	r25, 0xC3	; 195
      b3c:	59 07       	cpc	r21, r25
-        long redVal = (long)redValue;
-        
-        if (irValue < 50000) {
+void resetStats(void) {
+    beatsPerMinute = 0;
+    beatAvg = 0;
      b3e:	61 05       	cpc	r22, r1
      b40:	71 05       	cpc	r23, r1
      b42:	5c f4       	brge	.+22     	; 0xb5a <MAX30102_Start+0xd4>
      b44:	40 df       	rcall	.-384    	; 0x9c6 <resetStats>
      b46:	2f ef       	ldi	r18, 0xFF	; 255
      b48:	49 e6       	ldi	r20, 0x69	; 105
-            resetStats();
+    beatCount = 0;
      b4a:	88 e1       	ldi	r24, 0x18	; 24
      b4c:	21 50       	subi	r18, 0x01	; 1
      b4e:	40 40       	sbci	r20, 0x00	; 0
@@ -1664,11 +1664,11 @@ static inline void uart_puts(const char *str) {
      b58:	d1 cf       	rjmp	.-94     	; 0xafc <MAX30102_Start+0x76>
      b5a:	80 91 ad 02 	lds	r24, 0x02AD	; 0x8002ad <avgIndex>
      b5e:	90 91 ae 02 	lds	r25, 0x02AE	; 0x8002ae <avgIndex+0x1>
-            _delay_ms(500);
-            continue;
-        }
-        
-        irAvgBuffer[avgIndex] = irValue;
+    lastBeatTime = 0;
+    rateSpot = 0;
+    SpO2 = 0;
+    bufferIndex = 0;
+    bufferReady = 0;
      b62:	fc 01       	movw	r30, r24
      b64:	ee 0f       	add	r30, r30
      b66:	ff 1f       	adc	r31, r31
@@ -1683,25 +1683,25 @@ static inline void uart_puts(const char *str) {
      b78:	01 96       	adiw	r24, 0x01	; 1
      b7a:	65 e0       	ldi	r22, 0x05	; 5
      b7c:	70 e0       	ldi	r23, 0x00	; 0
-        avgIndex = (avgIndex + 1) % AVG_SIZE;
+    
      b7e:	f2 d4       	rcall	.+2532   	; 0x1564 <__divmodhi4>
      b80:	90 93 ae 02 	sts	0x02AE, r25	; 0x8002ae <avgIndex+0x1>
      b84:	80 93 ad 02 	sts	0x02AD, r24	; 0x8002ad <avgIndex>
      b88:	10 92 a9 02 	sts	0x02A9, r1	; 0x8002a9 <irSmooth>
      b8c:	10 92 aa 02 	sts	0x02AA, r1	; 0x8002aa <irSmooth+0x1>
-        
-        irSmooth = 0;
+    for (uint8_t x = 0; x < RATE_SIZE; x++) {
+        rates[x] = 0;
      b90:	10 92 ab 02 	sts	0x02AB, r1	; 0x8002ab <irSmooth+0x2>
      b94:	10 92 ac 02 	sts	0x02AC, r1	; 0x8002ac <irSmooth+0x3>
      b98:	80 e0       	ldi	r24, 0x00	; 0
      b9a:	90 e0       	ldi	r25, 0x00	; 0
      b9c:	20 c0       	rjmp	.+64     	; 0xbde <MAX30102_Start+0x158>
      b9e:	fc 01       	movw	r30, r24
-        for (int i = 0; i < AVG_SIZE; i++) {
+    }
      ba0:	ee 0f       	add	r30, r30
      ba2:	ff 1f       	adc	r31, r31
      ba4:	ee 0f       	add	r30, r30
-            irSmooth += irAvgBuffer[i];
+    for (int i = 0; i < SPO2_BUFFER_SIZE; i++) {
      ba6:	ff 1f       	adc	r31, r31
      ba8:	e0 53       	subi	r30, 0x30	; 48
      baa:	fd 4f       	sbci	r31, 0xFD	; 253
@@ -1725,24 +1725,24 @@ static inline void uart_puts(const char *str) {
      bde:	85 30       	cpi	r24, 0x05	; 5
      be0:	91 05       	cpc	r25, r1
      be2:	ec f2       	brlt	.-70     	; 0xb9e <MAX30102_Start+0x118>
-        
-        irAvgBuffer[avgIndex] = irValue;
-        avgIndex = (avgIndex + 1) % AVG_SIZE;
-        
-        irSmooth = 0;
-        for (int i = 0; i < AVG_SIZE; i++) {
+    bufferIndex = 0;
+    bufferReady = 0;
+    
+    for (uint8_t x = 0; x < RATE_SIZE; x++) {
+        rates[x] = 0;
+    }
      be4:	60 91 a9 02 	lds	r22, 0x02A9	; 0x8002a9 <irSmooth>
      be8:	70 91 aa 02 	lds	r23, 0x02AA	; 0x8002aa <irSmooth+0x1>
-            irSmooth += irAvgBuffer[i];
-        }
-        irSmooth /= AVG_SIZE;
+    for (int i = 0; i < SPO2_BUFFER_SIZE; i++) {
+        irBuffer[i] = 0;
+        redBuffer[i] = 0;
      bec:	80 91 ab 02 	lds	r24, 0x02AB	; 0x8002ab <irSmooth+0x2>
      bf0:	90 91 ac 02 	lds	r25, 0x02AC	; 0x8002ac <irSmooth+0x3>
      bf4:	25 e0       	ldi	r18, 0x05	; 5
      bf6:	30 e0       	ldi	r19, 0x00	; 0
      bf8:	40 e0       	ldi	r20, 0x00	; 0
      bfa:	50 e0       	ldi	r21, 0x00	; 0
-     bfc:	c6 d4       	rcall	.+2444   	; 0x158a <__divmodsi4>
+     bfc:	e8 d4       	rcall	.+2512   	; 0x15ce <__divmodsi4>
      bfe:	69 01       	movw	r12, r18
      c00:	7a 01       	movw	r14, r20
      c02:	20 93 a9 02 	sts	0x02A9, r18	; 0x8002a9 <irSmooth>
@@ -1751,8 +1751,8 @@ static inline void uart_puts(const char *str) {
      c0e:	50 93 ac 02 	sts	0x02AC, r21	; 0x8002ac <irSmooth+0x3>
      c12:	80 91 b7 02 	lds	r24, 0x02B7	; 0x8002b7 <lastIR>
      c16:	90 91 b8 02 	lds	r25, 0x02B8	; 0x8002b8 <lastIR+0x1>
-        
-        derivative = irSmooth - lastIR;
+    }
+    for (int i = 0; i < AVG_SIZE; i++) {
      c1a:	a0 91 b9 02 	lds	r26, 0x02B9	; 0x8002b9 <lastIR+0x2>
      c1e:	b0 91 ba 02 	lds	r27, 0x02BA	; 0x8002ba <lastIR+0x3>
      c22:	ba 01       	movw	r22, r20
@@ -1767,8 +1767,8 @@ static inline void uart_puts(const char *str) {
      c3a:	70 93 b6 02 	sts	0x02B6, r23	; 0x8002b6 <derivative+0x3>
      c3e:	80 91 af 02 	lds	r24, 0x02AF	; 0x8002af <lastDerivative>
      c42:	90 91 b0 02 	lds	r25, 0x02B0	; 0x8002b0 <lastDerivative+0x1>
-
-        if (lastDerivative > 20 && derivative < -20 && irSmooth > 100000) {
+        irAvgBuffer[i] = 0;
+    }
      c46:	a0 91 b1 02 	lds	r26, 0x02B1	; 0x8002b1 <lastDerivative+0x2>
      c4a:	b0 91 b2 02 	lds	r27, 0x02B2	; 0x8002b2 <lastDerivative+0x3>
      c4e:	45 97       	sbiw	r24, 0x15	; 21
@@ -1794,10 +1794,10 @@ static inline void uart_puts(const char *str) {
      c76:	30 dd       	rcall	.-1440   	; 0x6d8 <millis>
      c78:	4b 01       	movw	r8, r22
      c7a:	5c 01       	movw	r10, r24
-            unsigned long currentTime = millis();
+}
      c7c:	00 91 bf 02 	lds	r16, 0x02BF	; 0x8002bf <lastBeatTime>
      c80:	10 91 c0 02 	lds	r17, 0x02C0	; 0x8002c0 <lastBeatTime+0x1>
-            unsigned long timeDiff = currentTime - lastBeatTime;
+
      c84:	20 91 c1 02 	lds	r18, 0x02C1	; 0x8002c1 <lastBeatTime+0x2>
      c88:	30 91 c2 02 	lds	r19, 0x02C2	; 0x8002c2 <lastBeatTime+0x3>
      c8c:	60 1b       	sub	r22, r16
@@ -1808,8 +1808,8 @@ static inline void uart_puts(const char *str) {
      c96:	7c 01       	movw	r14, r24
      c98:	4f e5       	ldi	r20, 0x5F	; 95
      c9a:	c4 1a       	sub	r12, r20
-            
-            if (timeDiff > 350 && timeDiff < 2500 && lastBeatTime > 0) {
+//================================================================================================================================================
+// Functia principala - MAX30102_Start
      c9c:	41 e0       	ldi	r20, 0x01	; 1
      c9e:	d4 0a       	sbc	r13, r20
      ca0:	e1 08       	sbc	r14, r1
@@ -1829,8 +1829,8 @@ static inline void uart_puts(const char *str) {
      cbc:	68 c0       	rjmp	.+208    	; 0xd8e <MAX30102_Start+0x308>
      cbe:	39 d3       	rcall	.+1650   	; 0x1332 <__floatunsisf>
      cc0:	9b 01       	movw	r18, r22
-                //calcul BPM
-                beatsPerMinute = 60000.0 / (float)timeDiff;
+// Aceasta functie porneste senzorul, verifica conexiunea si citeste date intr-o bucla infinita
+// Afiseaza BPM si SpO2 pe LCD si trimite datele si prin UART
      cc2:	ac 01       	movw	r20, r24
      cc4:	60 e0       	ldi	r22, 0x00	; 0
      cc6:	70 e6       	ldi	r23, 0x60	; 96
@@ -1845,8 +1845,8 @@ static inline void uart_puts(const char *str) {
      cde:	90 93 ca 02 	sts	0x02CA, r25	; 0x8002ca <beatsPerMinute+0x3>
      ce2:	20 e0       	ldi	r18, 0x00	; 0
      ce4:	30 e0       	ldi	r19, 0x00	; 0
-                
-                if (beatsPerMinute >= 40 && beatsPerMinute <= 180) {
+
+void MAX30102_Start(void){
      ce6:	40 e2       	ldi	r20, 0x20	; 32
      ce8:	52 e4       	ldi	r21, 0x42	; 66
      cea:	d5 d3       	rcall	.+1962   	; 0x1496 <__gesf2>
@@ -1865,7 +1865,7 @@ static inline void uart_puts(const char *str) {
      d04:	44 c0       	rjmp	.+136    	; 0xd8e <MAX30102_Start+0x308>
      d06:	00 91 cb 02 	lds	r16, 0x02CB	; 0x8002cb <rateSpot>
      d0a:	77 24       	eor	r7, r7
-                    rates[rateSpot++] = (uint8_t)beatsPerMinute;
+    // Verifica daca senzorul este conectat
      d0c:	73 94       	inc	r7
      d0e:	70 0e       	add	r7, r16
      d10:	10 e0       	ldi	r17, 0x00	; 0
@@ -1879,35 +1879,35 @@ static inline void uart_puts(const char *str) {
      d20:	87 2d       	mov	r24, r7
      d22:	83 70       	andi	r24, 0x03	; 3
      d24:	80 93 cb 02 	sts	0x02CB, r24	; 0x8002cb <rateSpot>
-                    rateSpot %= RATE_SIZE;
+    max30102_check();
      d28:	10 92 c6 02 	sts	0x02C6, r1	; 0x8002c6 <beatAvg+0x1>
      d2c:	10 92 c5 02 	sts	0x02C5, r1	; 0x8002c5 <beatAvg>
-                    
-                    beatAvg = 0;
+    
+    // Configureaza parametrii senzorului:
      d30:	80 e0       	ldi	r24, 0x00	; 0
      d32:	60 e0       	ldi	r22, 0x00	; 0
      d34:	70 e0       	ldi	r23, 0x00	; 0
      d36:	14 c0       	rjmp	.+40     	; 0xd60 <MAX30102_Start+0x2da>
-                    int validBeats = 0;
-                    for (uint8_t x = 0; x < RATE_SIZE; x++) {
+    // - ledBrightness=40 (puterea LED-ului)
+    // - sampleAvg=SAMPLEAVG_4 (medieaza 4 esantioane)
      d38:	e8 2f       	mov	r30, r24
-                if (beatsPerMinute >= 40 && beatsPerMinute <= 180) {
-                    rates[rateSpot++] = (uint8_t)beatsPerMinute;
-                    rateSpot %= RATE_SIZE;
-                    
-                    beatAvg = 0;
-                    int validBeats = 0;
+void MAX30102_Start(void){
+    // Verifica daca senzorul este conectat
+    max30102_check();
+    
+    // Configureaza parametrii senzorului:
+    // - ledBrightness=40 (puterea LED-ului)
      d3a:	f0 e0       	ldi	r31, 0x00	; 0
      d3c:	e4 53       	subi	r30, 0x34	; 52
-                    for (uint8_t x = 0; x < RATE_SIZE; x++) {
+    // - sampleAvg=SAMPLEAVG_4 (medieaza 4 esantioane)
      d3e:	fd 4f       	sbci	r31, 0xFD	; 253
-                        if (rates[x] > 0) {
+    // - sampleRate=SAMPLERATE_100 (100 Hz = 100 esantioane/secunda)
      d40:	90 81       	ld	r25, Z
      d42:	99 23       	and	r25, r25
      d44:	61 f0       	breq	.+24     	; 0xd5e <MAX30102_Start+0x2d8>
      d46:	20 91 c5 02 	lds	r18, 0x02C5	; 0x8002c5 <beatAvg>
      d4a:	30 91 c6 02 	lds	r19, 0x02C6	; 0x8002c6 <beatAvg+0x1>
-                            beatAvg += rates[x];
+    // - pulseWidth=PULSEWIDTH_411 (411 microsecunde)
      d4e:	29 0f       	add	r18, r25
      d50:	31 1d       	adc	r19, r1
      d52:	30 93 c6 02 	sts	0x02C6, r19	; 0x8002c6 <beatAvg+0x1>
@@ -1915,51 +1915,51 @@ static inline void uart_puts(const char *str) {
      d5a:	6f 5f       	subi	r22, 0xFF	; 255
      d5c:	7f 4f       	sbci	r23, 0xFF	; 255
      d5e:	8f 5f       	subi	r24, 0xFF	; 255
-                            validBeats++;
+    // - adcRange=ADCRANGE_4096 (interval ADC 4096)
      d60:	84 30       	cpi	r24, 0x04	; 4
      d62:	50 f3       	brcs	.-44     	; 0xd38 <MAX30102_Start+0x2b2>
-                    rates[rateSpot++] = (uint8_t)beatsPerMinute;
-                    rateSpot %= RATE_SIZE;
-                    
-                    beatAvg = 0;
-                    int validBeats = 0;
-                    for (uint8_t x = 0; x < RATE_SIZE; x++) {
+    // Verifica daca senzorul este conectat
+    max30102_check();
+    
+    // Configureaza parametrii senzorului:
+    // - ledBrightness=40 (puterea LED-ului)
+    // - sampleAvg=SAMPLEAVG_4 (medieaza 4 esantioane)
      d64:	16 16       	cp	r1, r22
      d66:	17 06       	cpc	r1, r23
      d68:	4c f4       	brge	.+18     	; 0xd7c <MAX30102_Start+0x2f6>
-                        if (rates[x] > 0) {
-                            beatAvg += rates[x];
-                            validBeats++;
-                        }
-                    }
-                    if (validBeats > 0) {
+    // - sampleRate=SAMPLERATE_100 (100 Hz = 100 esantioane/secunda)
+    // - pulseWidth=PULSEWIDTH_411 (411 microsecunde)
+    // - adcRange=ADCRANGE_4096 (interval ADC 4096)
+    max30102_setup(40, SAMPLEAVG_4, SAMPLERATE_100, PULSEWIDTH_411, ADCRANGE_4096);
+    
+    // Setare luminozitate LED-uri
      d6a:	80 91 c5 02 	lds	r24, 0x02C5	; 0x8002c5 <beatAvg>
      d6e:	90 91 c6 02 	lds	r25, 0x02C6	; 0x8002c6 <beatAvg+0x1>
-                        beatAvg /= validBeats;
+    max30102_write_reg(MAX30102_LED1_PULSEAMP, 0x1F);
      d72:	f8 d3       	rcall	.+2032   	; 0x1564 <__divmodhi4>
      d74:	70 93 c6 02 	sts	0x02C6, r23	; 0x8002c6 <beatAvg+0x1>
      d78:	60 93 c5 02 	sts	0x02C5, r22	; 0x8002c5 <beatAvg>
      d7c:	80 91 c3 02 	lds	r24, 0x02C3	; 0x8002c3 <beatCount>
      d80:	90 91 c4 02 	lds	r25, 0x02C4	; 0x8002c4 <beatCount+0x1>
-                    }
-                    
-                    beatCount++;
+    max30102_write_reg(MAX30102_LED2_PULSEAMP, 40);
+    
+    // Initializeaza LCD si afiseaza mesajele initiale
      d84:	01 96       	adiw	r24, 0x01	; 1
      d86:	90 93 c4 02 	sts	0x02C4, r25	; 0x8002c4 <beatCount+0x1>
      d8a:	80 93 c3 02 	sts	0x02C3, r24	; 0x8002c3 <beatCount>
      d8e:	80 92 bf 02 	sts	0x02BF, r8	; 0x8002bf <lastBeatTime>
      d92:	90 92 c0 02 	sts	0x02C0, r9	; 0x8002c0 <lastBeatTime+0x1>
-                }
-            }
-            
-            lastBeatTime = currentTime;
+    LCD_Clear();
+    LCD_SetCursor(0, 0);
+    LCD_WriteString("BPM: --         ");
+    LCD_SetCursor(1, 0);
      d96:	a0 92 c1 02 	sts	0x02C1, r10	; 0x8002c1 <lastBeatTime+0x2>
      d9a:	b0 92 c2 02 	sts	0x02C2, r11	; 0x8002c2 <lastBeatTime+0x3>
      d9e:	80 91 b3 02 	lds	r24, 0x02B3	; 0x8002b3 <derivative>
      da2:	90 91 b4 02 	lds	r25, 0x02B4	; 0x8002b4 <derivative+0x1>
-        }
-        
-        lastDerivative = derivative;
+    LCD_WriteString("SpO2: --        ");
+    
+    _delay_ms(2000);
      da6:	a0 91 b5 02 	lds	r26, 0x02B5	; 0x8002b5 <derivative+0x2>
      daa:	b0 91 b6 02 	lds	r27, 0x02B6	; 0x8002b6 <derivative+0x3>
      dae:	80 93 af 02 	sts	0x02AF, r24	; 0x8002af <lastDerivative>
@@ -1968,7 +1968,7 @@ static inline void uart_puts(const char *str) {
      dba:	b0 93 b2 02 	sts	0x02B2, r27	; 0x8002b2 <lastDerivative+0x3>
      dbe:	80 91 a9 02 	lds	r24, 0x02A9	; 0x8002a9 <irSmooth>
      dc2:	90 91 aa 02 	lds	r25, 0x02AA	; 0x8002aa <irSmooth+0x1>
-        lastIR = irSmooth;
+    uart_puts("Astept deget\r\n");
      dc6:	a0 91 ab 02 	lds	r26, 0x02AB	; 0x8002ab <irSmooth+0x2>
      dca:	b0 91 ac 02 	lds	r27, 0x02AC	; 0x8002ac <irSmooth+0x3>
      dce:	80 93 b7 02 	sts	0x02B7, r24	; 0x8002b7 <lastIR>
@@ -1977,8 +1977,8 @@ static inline void uart_puts(const char *str) {
      dda:	b0 93 ba 02 	sts	0x02BA, r27	; 0x8002ba <lastIR+0x3>
      dde:	80 91 a7 02 	lds	r24, 0x02A7	; 0x8002a7 <bufferIndex>
      de2:	90 91 a8 02 	lds	r25, 0x02A8	; 0x8002a8 <bufferIndex+0x1>
-        
-        irBuffer[bufferIndex] = irValue32;
+    resetStats();
+    
      de6:	9c 01       	movw	r18, r24
      de8:	22 0f       	add	r18, r18
      dea:	33 1f       	adc	r19, r19
@@ -1999,7 +1999,7 @@ static inline void uart_puts(const char *str) {
      e08:	ec 58       	subi	r30, 0x8C	; 140
      e0a:	fb 4f       	sbci	r31, 0xFB	; 251
      e0c:	4b ad       	ldd	r20, Y+59	; 0x3b
-        redBuffer[bufferIndex] = redValue;
+    // Bucla infinita de citire si procesare
      e0e:	5c ad       	ldd	r21, Y+60	; 0x3c
      e10:	6d ad       	ldd	r22, Y+61	; 0x3d
      e12:	7e ad       	ldd	r23, Y+62	; 0x3e
@@ -2010,23 +2010,23 @@ static inline void uart_puts(const char *str) {
      e1c:	01 96       	adiw	r24, 0x01	; 1
      e1e:	90 93 a8 02 	sts	0x02A8, r25	; 0x8002a8 <bufferIndex+0x1>
      e22:	80 93 a7 02 	sts	0x02A7, r24	; 0x8002a7 <bufferIndex>
-        bufferIndex++;
+    while(1) {
      e26:	84 36       	cpi	r24, 0x64	; 100
      e28:	91 05       	cpc	r25, r1
      e2a:	3c f0       	brlt	.+14     	; 0xe3a <MAX30102_Start+0x3b4>
-        
-        if (bufferIndex >= SPO2_BUFFER_SIZE) {
+        // Verifica daca sunt date noi in FIFO
+        uint8_t readPtr = max30102_get_read_ptr();
      e2c:	10 92 a8 02 	sts	0x02A8, r1	; 0x8002a8 <bufferIndex+0x1>
      e30:	10 92 a7 02 	sts	0x02A7, r1	; 0x8002a7 <bufferIndex>
-            bufferIndex = 0;
+        uint8_t writePtr = max30102_get_write_ptr();
      e34:	81 e0       	ldi	r24, 0x01	; 1
      e36:	80 93 a6 02 	sts	0x02A6, r24	; 0x8002a6 <bufferReady>
-            bufferReady = 1;
+        
      e3a:	80 91 a6 02 	lds	r24, 0x02A6	; 0x8002a6 <bufferReady>
      e3e:	88 23       	and	r24, r24
-        }
-        
-        if (bufferReady && beatCount >= 3) {
+        // Daca pointerii sunt egali, FIFO-ul este gol, asteapta
+        if (readPtr == writePtr) {
+            _delay_ms(1);
      e40:	39 f0       	breq	.+14     	; 0xe50 <MAX30102_Start+0x3ca>
      e42:	80 91 c3 02 	lds	r24, 0x02C3	; 0x8002c3 <beatCount>
      e46:	90 91 c4 02 	lds	r25, 0x02C4	; 0x8002c4 <beatCount+0x1>
@@ -2034,21 +2034,21 @@ static inline void uart_puts(const char *str) {
      e4c:	0c f0       	brlt	.+2      	; 0xe50 <MAX30102_Start+0x3ca>
      e4e:	72 dc       	rcall	.-1820   	; 0x734 <calculateSpO2>
      e50:	80 91 c5 02 	lds	r24, 0x02C5	; 0x8002c5 <beatAvg>
-            calculateSpO2();
+            continue;
      e54:	90 91 c6 02 	lds	r25, 0x02C6	; 0x8002c6 <beatAvg+0x1>
-        // Actualizare LCD - linia 1: BPM, linia 2: SpO2
-        char bpmBuffer[17];
-        char spo2Buffer[17];
+        // Citeste o pereche de mostre (red si infrarosu)
+        uint32_t redValue, irValue32;
+        max30102_read_sample(&redValue, &irValue32);
+        irValue = (long)irValue32;
+        long redVal = (long)redValue;
         
-        // Linia 1 - BPM
-        if (beatAvg > 0) {
      e58:	18 16       	cp	r1, r24
      e5a:	19 06       	cpc	r1, r25
      e5c:	94 f4       	brge	.+36     	; 0xe82 <MAX30102_Start+0x3fc>
      e5e:	9f 93       	push	r25
      e60:	8f 93       	push	r24
      e62:	84 e7       	ldi	r24, 0x74	; 116
-            sprintf(bpmBuffer, "BPM: %3d        ", beatAvg);
+        // Daca semnalul IR este prea mic, probabil degetul nu e pe senzor
      e64:	92 e0       	ldi	r25, 0x02	; 2
      e66:	9f 93       	push	r25
      e68:	8f 93       	push	r24
@@ -2066,8 +2066,8 @@ static inline void uart_puts(const char *str) {
      e80:	09 c0       	rjmp	.+18     	; 0xe94 <MAX30102_Start+0x40e>
      e82:	81 e1       	ldi	r24, 0x11	; 17
      e84:	e2 e5       	ldi	r30, 0x52	; 82
-        } else {
-            sprintf(bpmBuffer, "BPM: --         ");
+        if (irValue < 50000) {
+            resetStats();
      e86:	f2 e0       	ldi	r31, 0x02	; 2
      e88:	de 01       	movw	r26, r28
      e8a:	96 96       	adiw	r26, 0x26	; 38
@@ -2076,18 +2076,18 @@ static inline void uart_puts(const char *str) {
      e90:	8a 95       	dec	r24
      e92:	e1 f7       	brne	.-8      	; 0xe8c <MAX30102_Start+0x406>
      e94:	60 e0       	ldi	r22, 0x00	; 0
-        }
-        LCD_SetCursor(0, 0);
+            _delay_ms(500);
+            continue;
      e96:	80 e0       	ldi	r24, 0x00	; 0
      e98:	25 da       	rcall	.-2998   	; 0x2e4 <LCD_SetCursor>
      e9a:	ce 01       	movw	r24, r28
      e9c:	86 96       	adiw	r24, 0x26	; 38
-        LCD_WriteString(bpmBuffer);
+        }
      e9e:	0d da       	rcall	.-3046   	; 0x2ba <LCD_WriteString>
      ea0:	c0 90 a2 02 	lds	r12, 0x02A2	; 0x8002a2 <SpO2>
         
-        // Linia 2 - SpO2
-        if (SpO2 >= 70 && SpO2 <= 100) {
+        // Adauga valoarea IR la buffer pentru mediare
+        irAvgBuffer[avgIndex] = irValue;
      ea4:	d0 90 a3 02 	lds	r13, 0x02A3	; 0x8002a3 <SpO2+0x1>
      ea8:	e0 90 a4 02 	lds	r14, 0x02A4	; 0x8002a4 <SpO2+0x2>
      eac:	f0 90 a5 02 	lds	r15, 0x02A5	; 0x8002a5 <SpO2+0x3>
@@ -2108,13 +2108,13 @@ static inline void uart_puts(const char *str) {
      ecc:	b6 01       	movw	r22, r12
      ece:	94 d1       	rcall	.+808    	; 0x11f8 <__cmpsf2>
      ed0:	18 16       	cp	r1, r24
-            int spo2Int = (int)SpO2;
+        avgIndex = (avgIndex + 1) % AVG_SIZE;
      ed2:	44 f1       	brlt	.+80     	; 0xf24 <MAX30102_Start+0x49e>
      ed4:	c7 01       	movw	r24, r14
      ed6:	b6 01       	movw	r22, r12
      ed8:	fb d1       	rcall	.+1014   	; 0x12d0 <__fixsfsi>
      eda:	4b 01       	movw	r8, r22
-            int spo2Dec = (int)((SpO2 - spo2Int) * 10);
+        
      edc:	5c 01       	movw	r10, r24
      ede:	07 2e       	mov	r0, r23
      ee0:	00 0c       	add	r0, r0
@@ -2134,7 +2134,7 @@ static inline void uart_puts(const char *str) {
      efc:	e9 d1       	rcall	.+978    	; 0x12d0 <__fixsfsi>
      efe:	7f 93       	push	r23
      f00:	6f 93       	push	r22
-            sprintf(spo2Buffer, "SpO2: %2d.%1d%%     ", spo2Int, spo2Dec);
+        // Calculeaza media valorilor IR
      f02:	9f 92       	push	r9
      f04:	8f 92       	push	r8
      f06:	85 e8       	ldi	r24, 0x85	; 133
@@ -2149,23 +2149,23 @@ static inline void uart_puts(const char *str) {
      f18:	0f b6       	in	r0, 0x3f	; 63
      f1a:	f8 94       	cli
      f1c:	de bf       	out	0x3e, r29	; 62
+            _delay_ms(500);
+            continue;
         }
-        LCD_SetCursor(0, 0);
-        LCD_WriteString(bpmBuffer);
         
-        // Linia 2 - SpO2
-        if (SpO2 >= 70 && SpO2 <= 100) {
+        // Adauga valoarea IR la buffer pentru mediare
+        irAvgBuffer[avgIndex] = irValue;
      f1e:	0f be       	out	0x3f, r0	; 63
      f20:	cd bf       	out	0x3d, r28	; 61
      f22:	09 c0       	rjmp	.+18     	; 0xf36 <MAX30102_Start+0x4b0>
      f24:	81 e1       	ldi	r24, 0x11	; 17
      f26:	e3 e6       	ldi	r30, 0x63	; 99
      f28:	f2 e0       	ldi	r31, 0x02	; 2
-            int spo2Int = (int)SpO2;
-            int spo2Dec = (int)((SpO2 - spo2Int) * 10);
-            sprintf(spo2Buffer, "SpO2: %2d.%1d%%     ", spo2Int, spo2Dec);
-        } else {
-            sprintf(spo2Buffer, "SpO2: --        ");
+        avgIndex = (avgIndex + 1) % AVG_SIZE;
+        
+        // Calculeaza media valorilor IR
+        irSmooth = 0;
+        for (int i = 0; i < AVG_SIZE; i++) {
      f2a:	de 01       	movw	r26, r28
      f2c:	55 96       	adiw	r26, 0x15	; 21
      f2e:	01 90       	ld	r0, Z+
@@ -2175,13 +2175,13 @@ static inline void uart_puts(const char *str) {
      f36:	60 e0       	ldi	r22, 0x00	; 0
      f38:	81 e0       	ldi	r24, 0x01	; 1
      f3a:	d4 d9       	rcall	.-3160   	; 0x2e4 <LCD_SetCursor>
+            irSmooth += irAvgBuffer[i];
         }
-        LCD_SetCursor(1, 0);
      f3c:	ce 01       	movw	r24, r28
      f3e:	45 96       	adiw	r24, 0x15	; 21
      f40:	bc d9       	rcall	.-3208   	; 0x2ba <LCD_WriteString>
      f42:	ef e3       	ldi	r30, 0x3F	; 63
-        LCD_WriteString(spo2Buffer);
+        irSmooth /= AVG_SIZE;
      f44:	f2 e0       	ldi	r31, 0x02	; 2
      f46:	07 c0       	rjmp	.+14     	; 0xf56 <MAX30102_Start+0x4d0>
      f48:	31 96       	adiw	r30, 0x01	; 1
@@ -2208,9 +2208,9 @@ static inline void uart_puts(const char *str) {
 	while (*str) {
      f60:	90 91 c6 02 	lds	r25, 0x02C6	; 0x8002c6 <beatAvg+0x1>
         
-        // Output UART (opțional)
-        uart_puts("BPM:");
-        if (beatAvg > 0) {
+        // Calculeaza derivata pentru detactia unui puls/inima
+        derivative = irSmooth - lastIR;
+
      f64:	18 16       	cp	r1, r24
      f66:	19 06       	cpc	r1, r25
      f68:	8c f5       	brge	.+98     	; 0xfcc <MAX30102_Start+0x546>
@@ -2218,7 +2218,7 @@ static inline void uart_puts(const char *str) {
      f6c:	00 0c       	add	r0, r0
      f6e:	aa 0b       	sbc	r26, r26
      f70:	bb 0b       	sbc	r27, r27
-            uart_putInt(beatAvg);
+        // Detectare puls: derivata trece de la pozitiva la negativa
      f72:	bf 93       	push	r27
      f74:	af 93       	push	r26
      f76:	9f 93       	push	r25
@@ -2327,11 +2327,11 @@ static inline void uart_puts(const char *str) {
 	while (*str) {
      fea:	f6 cf       	rjmp	.-20     	; 0xfd8 <MAX30102_Start+0x552>
      fec:	c0 90 a2 02 	lds	r12, 0x02A2	; 0x8002a2 <SpO2>
-        } else {
-            uart_puts("--");
-        }
-        uart_puts(" SpO2:");
-        if (SpO2 >= 70 && SpO2 <= 100) {
+        if (lastDerivative > 20 && derivative < -20 && irSmooth > 100000) {
+            unsigned long currentTime = millis();
+            unsigned long timeDiff = currentTime - lastBeatTime;
+            
+            // Verifica daca intervalul dintre batai e rezonabil (350-2500ms)
      ff0:	d0 90 a3 02 	lds	r13, 0x02A3	; 0x8002a3 <SpO2+0x1>
      ff4:	e0 90 a4 02 	lds	r14, 0x02A4	; 0x8002a4 <SpO2+0x2>
      ff8:	f0 90 a5 02 	lds	r15, 0x02A5	; 0x8002a5 <SpO2+0x3>
@@ -2354,12 +2354,12 @@ static inline void uart_puts(const char *str) {
     101c:	ed d0       	rcall	.+474    	; 0x11f8 <__cmpsf2>
     101e:	18 16       	cp	r1, r24
     1020:	0c f4       	brge	.+2      	; 0x1024 <__EEPROM_REGION_LENGTH__+0x24>
-            int spo2Int = (int)SpO2;
+            if (timeDiff > 350 && timeDiff < 2500 && lastBeatTime > 0) {
     1022:	74 c0       	rjmp	.+232    	; 0x110c <__EEPROM_REGION_LENGTH__+0x10c>
     1024:	c7 01       	movw	r24, r14
     1026:	b6 01       	movw	r22, r12
     1028:	53 d1       	rcall	.+678    	; 0x12d0 <__fixsfsi>
-            int spo2Dec = (int)((SpO2 - spo2Int) * 10);
+                // Calculeaza BPM: 60000ms / intervalul in ms
     102a:	4b 01       	movw	r8, r22
     102c:	77 0f       	add	r23, r23
     102e:	aa 08       	sbc	r10, r10
@@ -2453,9 +2453,9 @@ static inline void uart_putc(char c) {
     10a6:	00 0c       	add	r0, r0
     10a8:	ee 08       	sbc	r14, r14
     10aa:	ff 08       	sbc	r15, r15
-            uart_putInt(spo2Int);
-            uart_putc('.');
-            uart_putInt(spo2Dec);
+                beatsPerMinute = 60000.0 / (float)timeDiff;
+                
+                // Verifica daca BPM e in intervalul valid (40-180)
     10ac:	ff 92       	push	r15
     10ae:	ef 92       	push	r14
     10b0:	df 92       	push	r13
@@ -3166,7 +3166,7 @@ static inline void uart_puts(const char *str) {
     156c:	06 d0       	rcall	.+12     	; 0x157a <__divmodhi4_neg1>
     156e:	77 fd       	sbrc	r23, 7
     1570:	08 d0       	rcall	.+16     	; 0x1582 <__divmodhi4_neg2>
-    1572:	27 d0       	rcall	.+78     	; 0x15c2 <__udivmodhi4>
+    1572:	49 d0       	rcall	.+146    	; 0x1606 <__udivmodhi4>
     1574:	07 fc       	sbrc	r0, 7
     1576:	05 d0       	rcall	.+10     	; 0x1582 <__divmodhi4_neg2>
     1578:	3e f4       	brtc	.+14     	; 0x1588 <__divmodhi4_exit>
@@ -3185,106 +3185,106 @@ static inline void uart_puts(const char *str) {
 00001588 <__divmodhi4_exit>:
     1588:	08 95       	ret
 
-0000158a <__divmodsi4>:
-    158a:	05 2e       	mov	r0, r21
-    158c:	97 fb       	bst	r25, 7
-    158e:	16 f4       	brtc	.+4      	; 0x1594 <__divmodsi4+0xa>
-    1590:	00 94       	com	r0
-    1592:	0f d0       	rcall	.+30     	; 0x15b2 <__negsi2>
-    1594:	57 fd       	sbrc	r21, 7
-    1596:	05 d0       	rcall	.+10     	; 0x15a2 <__divmodsi4_neg2>
-    1598:	28 d0       	rcall	.+80     	; 0x15ea <__udivmodsi4>
-    159a:	07 fc       	sbrc	r0, 7
-    159c:	02 d0       	rcall	.+4      	; 0x15a2 <__divmodsi4_neg2>
-    159e:	46 f4       	brtc	.+16     	; 0x15b0 <__divmodsi4_exit>
-    15a0:	08 c0       	rjmp	.+16     	; 0x15b2 <__negsi2>
+0000158a <__udivmodsi4>:
+    158a:	a1 e2       	ldi	r26, 0x21	; 33
+    158c:	1a 2e       	mov	r1, r26
+    158e:	aa 1b       	sub	r26, r26
+    1590:	bb 1b       	sub	r27, r27
+    1592:	fd 01       	movw	r30, r26
+    1594:	0d c0       	rjmp	.+26     	; 0x15b0 <__udivmodsi4_ep>
 
-000015a2 <__divmodsi4_neg2>:
-    15a2:	50 95       	com	r21
-    15a4:	40 95       	com	r20
-    15a6:	30 95       	com	r19
-    15a8:	21 95       	neg	r18
-    15aa:	3f 4f       	sbci	r19, 0xFF	; 255
-    15ac:	4f 4f       	sbci	r20, 0xFF	; 255
-    15ae:	5f 4f       	sbci	r21, 0xFF	; 255
+00001596 <__udivmodsi4_loop>:
+    1596:	aa 1f       	adc	r26, r26
+    1598:	bb 1f       	adc	r27, r27
+    159a:	ee 1f       	adc	r30, r30
+    159c:	ff 1f       	adc	r31, r31
+    159e:	a2 17       	cp	r26, r18
+    15a0:	b3 07       	cpc	r27, r19
+    15a2:	e4 07       	cpc	r30, r20
+    15a4:	f5 07       	cpc	r31, r21
+    15a6:	20 f0       	brcs	.+8      	; 0x15b0 <__udivmodsi4_ep>
+    15a8:	a2 1b       	sub	r26, r18
+    15aa:	b3 0b       	sbc	r27, r19
+    15ac:	e4 0b       	sbc	r30, r20
+    15ae:	f5 0b       	sbc	r31, r21
 
-000015b0 <__divmodsi4_exit>:
-    15b0:	08 95       	ret
+000015b0 <__udivmodsi4_ep>:
+    15b0:	66 1f       	adc	r22, r22
+    15b2:	77 1f       	adc	r23, r23
+    15b4:	88 1f       	adc	r24, r24
+    15b6:	99 1f       	adc	r25, r25
+    15b8:	1a 94       	dec	r1
+    15ba:	69 f7       	brne	.-38     	; 0x1596 <__udivmodsi4_loop>
+    15bc:	60 95       	com	r22
+    15be:	70 95       	com	r23
+    15c0:	80 95       	com	r24
+    15c2:	90 95       	com	r25
+    15c4:	9b 01       	movw	r18, r22
+    15c6:	ac 01       	movw	r20, r24
+    15c8:	bd 01       	movw	r22, r26
+    15ca:	cf 01       	movw	r24, r30
+    15cc:	08 95       	ret
 
-000015b2 <__negsi2>:
-    15b2:	90 95       	com	r25
-    15b4:	80 95       	com	r24
-    15b6:	70 95       	com	r23
-    15b8:	61 95       	neg	r22
-    15ba:	7f 4f       	sbci	r23, 0xFF	; 255
-    15bc:	8f 4f       	sbci	r24, 0xFF	; 255
-    15be:	9f 4f       	sbci	r25, 0xFF	; 255
-    15c0:	08 95       	ret
+000015ce <__divmodsi4>:
+    15ce:	05 2e       	mov	r0, r21
+    15d0:	97 fb       	bst	r25, 7
+    15d2:	16 f4       	brtc	.+4      	; 0x15d8 <__divmodsi4+0xa>
+    15d4:	00 94       	com	r0
+    15d6:	0f d0       	rcall	.+30     	; 0x15f6 <__negsi2>
+    15d8:	57 fd       	sbrc	r21, 7
+    15da:	05 d0       	rcall	.+10     	; 0x15e6 <__divmodsi4_neg2>
+    15dc:	d6 df       	rcall	.-84     	; 0x158a <__udivmodsi4>
+    15de:	07 fc       	sbrc	r0, 7
+    15e0:	02 d0       	rcall	.+4      	; 0x15e6 <__divmodsi4_neg2>
+    15e2:	46 f4       	brtc	.+16     	; 0x15f4 <__divmodsi4_exit>
+    15e4:	08 c0       	rjmp	.+16     	; 0x15f6 <__negsi2>
 
-000015c2 <__udivmodhi4>:
-    15c2:	aa 1b       	sub	r26, r26
-    15c4:	bb 1b       	sub	r27, r27
-    15c6:	51 e1       	ldi	r21, 0x11	; 17
-    15c8:	07 c0       	rjmp	.+14     	; 0x15d8 <__udivmodhi4_ep>
+000015e6 <__divmodsi4_neg2>:
+    15e6:	50 95       	com	r21
+    15e8:	40 95       	com	r20
+    15ea:	30 95       	com	r19
+    15ec:	21 95       	neg	r18
+    15ee:	3f 4f       	sbci	r19, 0xFF	; 255
+    15f0:	4f 4f       	sbci	r20, 0xFF	; 255
+    15f2:	5f 4f       	sbci	r21, 0xFF	; 255
 
-000015ca <__udivmodhi4_loop>:
-    15ca:	aa 1f       	adc	r26, r26
-    15cc:	bb 1f       	adc	r27, r27
-    15ce:	a6 17       	cp	r26, r22
-    15d0:	b7 07       	cpc	r27, r23
-    15d2:	10 f0       	brcs	.+4      	; 0x15d8 <__udivmodhi4_ep>
-    15d4:	a6 1b       	sub	r26, r22
-    15d6:	b7 0b       	sbc	r27, r23
+000015f4 <__divmodsi4_exit>:
+    15f4:	08 95       	ret
 
-000015d8 <__udivmodhi4_ep>:
-    15d8:	88 1f       	adc	r24, r24
-    15da:	99 1f       	adc	r25, r25
-    15dc:	5a 95       	dec	r21
-    15de:	a9 f7       	brne	.-22     	; 0x15ca <__udivmodhi4_loop>
-    15e0:	80 95       	com	r24
-    15e2:	90 95       	com	r25
-    15e4:	bc 01       	movw	r22, r24
-    15e6:	cd 01       	movw	r24, r26
-    15e8:	08 95       	ret
+000015f6 <__negsi2>:
+    15f6:	90 95       	com	r25
+    15f8:	80 95       	com	r24
+    15fa:	70 95       	com	r23
+    15fc:	61 95       	neg	r22
+    15fe:	7f 4f       	sbci	r23, 0xFF	; 255
+    1600:	8f 4f       	sbci	r24, 0xFF	; 255
+    1602:	9f 4f       	sbci	r25, 0xFF	; 255
+    1604:	08 95       	ret
 
-000015ea <__udivmodsi4>:
-    15ea:	a1 e2       	ldi	r26, 0x21	; 33
-    15ec:	1a 2e       	mov	r1, r26
-    15ee:	aa 1b       	sub	r26, r26
-    15f0:	bb 1b       	sub	r27, r27
-    15f2:	fd 01       	movw	r30, r26
-    15f4:	0d c0       	rjmp	.+26     	; 0x1610 <__udivmodsi4_ep>
+00001606 <__udivmodhi4>:
+    1606:	aa 1b       	sub	r26, r26
+    1608:	bb 1b       	sub	r27, r27
+    160a:	51 e1       	ldi	r21, 0x11	; 17
+    160c:	07 c0       	rjmp	.+14     	; 0x161c <__udivmodhi4_ep>
 
-000015f6 <__udivmodsi4_loop>:
-    15f6:	aa 1f       	adc	r26, r26
-    15f8:	bb 1f       	adc	r27, r27
-    15fa:	ee 1f       	adc	r30, r30
-    15fc:	ff 1f       	adc	r31, r31
-    15fe:	a2 17       	cp	r26, r18
-    1600:	b3 07       	cpc	r27, r19
-    1602:	e4 07       	cpc	r30, r20
-    1604:	f5 07       	cpc	r31, r21
-    1606:	20 f0       	brcs	.+8      	; 0x1610 <__udivmodsi4_ep>
-    1608:	a2 1b       	sub	r26, r18
-    160a:	b3 0b       	sbc	r27, r19
-    160c:	e4 0b       	sbc	r30, r20
-    160e:	f5 0b       	sbc	r31, r21
+0000160e <__udivmodhi4_loop>:
+    160e:	aa 1f       	adc	r26, r26
+    1610:	bb 1f       	adc	r27, r27
+    1612:	a6 17       	cp	r26, r22
+    1614:	b7 07       	cpc	r27, r23
+    1616:	10 f0       	brcs	.+4      	; 0x161c <__udivmodhi4_ep>
+    1618:	a6 1b       	sub	r26, r22
+    161a:	b7 0b       	sbc	r27, r23
 
-00001610 <__udivmodsi4_ep>:
-    1610:	66 1f       	adc	r22, r22
-    1612:	77 1f       	adc	r23, r23
-    1614:	88 1f       	adc	r24, r24
-    1616:	99 1f       	adc	r25, r25
-    1618:	1a 94       	dec	r1
-    161a:	69 f7       	brne	.-38     	; 0x15f6 <__udivmodsi4_loop>
-    161c:	60 95       	com	r22
-    161e:	70 95       	com	r23
-    1620:	80 95       	com	r24
-    1622:	90 95       	com	r25
-    1624:	9b 01       	movw	r18, r22
-    1626:	ac 01       	movw	r20, r24
-    1628:	bd 01       	movw	r22, r26
-    162a:	cf 01       	movw	r24, r30
+0000161c <__udivmodhi4_ep>:
+    161c:	88 1f       	adc	r24, r24
+    161e:	99 1f       	adc	r25, r25
+    1620:	5a 95       	dec	r21
+    1622:	a9 f7       	brne	.-22     	; 0x160e <__udivmodhi4_loop>
+    1624:	80 95       	com	r24
+    1626:	90 95       	com	r25
+    1628:	bc 01       	movw	r22, r24
+    162a:	cd 01       	movw	r24, r26
     162c:	08 95       	ret
 
 0000162e <snprintf>:

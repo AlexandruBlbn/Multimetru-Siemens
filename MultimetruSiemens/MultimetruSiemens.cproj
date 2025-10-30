@@ -122,6 +122,18 @@
     </ToolchainSettings>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="AD8232\AD8232.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="AD8232\AD8232.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="Config\ADC.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="Config\ADC.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="Config\i2c.h">
       <SubType>compile</SubType>
     </Compile>
@@ -148,6 +160,7 @@
     <Folder Include="Config" />
     <Folder Include="MAX30102" />
     <Folder Include="LCD" />
+    <Folder Include="AD8232" />
   </ItemGroup>
   <Import Project="$(AVRSTUDIO_EXE_PATH)\\Vs\\Compiler.targets" />
 </Project>

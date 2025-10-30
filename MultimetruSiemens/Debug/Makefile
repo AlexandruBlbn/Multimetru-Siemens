@@ -35,11 +35,14 @@ LINKER_SCRIPT_DEP:=
 SUBDIRS :=  \
 ../Config \
 ../MAX30102 \
-../LCD
+../LCD \
+../AD8232
 
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS +=  \
+../AD8232/AD8232.c \
+../Config/ADC.c \
 ../LCD/LCD.c \
 ../main.c \
 ../MAX30102/max30102.c
@@ -52,21 +55,29 @@ ASM_SRCS +=
 
 
 OBJS +=  \
+AD8232/AD8232.o \
+Config/ADC.o \
 LCD/LCD.o \
 main.o \
 MAX30102/max30102.o
 
 OBJS_AS_ARGS +=  \
+AD8232/AD8232.o \
+Config/ADC.o \
 LCD/LCD.o \
 main.o \
 MAX30102/max30102.o
 
 C_DEPS +=  \
+AD8232/AD8232.d \
+Config/ADC.d \
 LCD/LCD.d \
 main.d \
 MAX30102/max30102.d
 
 C_DEPS_AS_ARGS +=  \
+AD8232/AD8232.d \
+Config/ADC.d \
 LCD/LCD.d \
 main.d \
 MAX30102/max30102.d
@@ -85,6 +96,20 @@ LINKER_SCRIPT_DEP+=
 
 
 # AVR32/GNU C Compiler
+AD8232/AD8232.o: ../AD8232/AD8232.c
+	@echo Building file: $<
+	@echo Invoking: AVR/GNU C Compiler : 5.4.0
+	$(QUOTE)C:\Program Files (x86)\Atmel\Studio\7.0\toolchain\avr8\avr8-gnu-toolchain\bin\avr-gcc.exe$(QUOTE)  -x c -funsigned-char -funsigned-bitfields -DDEBUG  -I"C:\Program Files (x86)\Atmel\Studio\7.0\Packs\Atmel\ATmega_DFP\2.2.509\include"  -Og -ffunction-sections -fdata-sections -fpack-struct -fshort-enums -mrelax -g2 -Wall -mmcu=atmega2560 -B "C:\Program Files (x86)\Atmel\Studio\7.0\Packs\Atmel\ATmega_DFP\2.2.509\gcc\dev\atmega2560" -c -std=gnu99 -MD -MP -MF "$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -MT"$(@:%.o=%.o)"   -o "$@" "$<" 
+	@echo Finished building: $<
+	
+
+Config/ADC.o: ../Config/ADC.c
+	@echo Building file: $<
+	@echo Invoking: AVR/GNU C Compiler : 5.4.0
+	$(QUOTE)C:\Program Files (x86)\Atmel\Studio\7.0\toolchain\avr8\avr8-gnu-toolchain\bin\avr-gcc.exe$(QUOTE)  -x c -funsigned-char -funsigned-bitfields -DDEBUG  -I"C:\Program Files (x86)\Atmel\Studio\7.0\Packs\Atmel\ATmega_DFP\2.2.509\include"  -Og -ffunction-sections -fdata-sections -fpack-struct -fshort-enums -mrelax -g2 -Wall -mmcu=atmega2560 -B "C:\Program Files (x86)\Atmel\Studio\7.0\Packs\Atmel\ATmega_DFP\2.2.509\gcc\dev\atmega2560" -c -std=gnu99 -MD -MP -MF "$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -MT"$(@:%.o=%.o)"   -o "$@" "$<" 
+	@echo Finished building: $<
+	
+
 LCD/LCD.o: ../LCD/LCD.c
 	@echo Building file: $<
 	@echo Invoking: AVR/GNU C Compiler : 5.4.0

@@ -27,17 +27,7 @@ int main(void) {
 	//TODO: meniu cu intreruperi pt functii.
 
     while(1) {
-		if(optiune == 1){
-			    MAX30102_Start();
-		}
-		else{
-						LCD_Clear();
-			LCD_WriteString("Optiune invalida.");
-			_delay_ms(1000);
-			LCD_Clear();
-			LCD_WriteString("Alege optiune");
-						_delay_ms(1000);
-		}
+		MAX30102_Start();
 
     }
     
