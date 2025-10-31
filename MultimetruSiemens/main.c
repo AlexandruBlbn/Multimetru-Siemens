@@ -5,15 +5,18 @@
 #include <avr/interrupt.h>
 #include "Config/i2c.h"
 #include "Config/uart.h"
-#include "LCD/LCD.h"
-
-#include "MAX30102/max30102.h"
+#include "Config/ADC.h"
+#include "inc/LCD.h"
+#include "inc/AD8232.h"
+#include "inc/max30102.h"
 
 void AVR_init(void){ 
     uart_init(); 
     i2c_init(); 
+    adc_init();
     timer_init();
-    LCD_Init();     
+    LCD_Init();
+    AD8232_init();
 	LCD_Clear();
 	LCD_WriteString("Initializare...");
 	_delay_ms(1000);
@@ -24,7 +27,7 @@ int main(void) {
 	AVR_init();
 	int optiune = 1;
 	
-	//TODO: meniu cu intreruperi pt functii.
+	// TODO: Menu with interrupts for functions
 
     while(1) {
 		MAX30102_Start();

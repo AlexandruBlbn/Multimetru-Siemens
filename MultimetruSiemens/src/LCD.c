@@ -6,11 +6,11 @@
  */ 
 
 #define F_CPU 16000000UL
-#include "LCD.h"
+#include "../inc/LCD.h"
 #include <avr/io.h>
 #include <util/delay.h>
 
-// functie de enable al pulsului
+// Enable pulse function
 static void LCD_PulseEnable(void) {
     LCD_E_PORT |= (1 << LCD_E_PIN);
     _delay_us(1);
@@ -19,9 +19,9 @@ static void LCD_PulseEnable(void) {
 }
 
 
-// trimite nibble 4 biti pe pinii d4-d7.
+// Send 4-bit nibble on pins D4-D7
 static void LCD_SendNibble(uint8_t nibble) {
-    // Setează fiecare pin individual pentru că sunt pe porturi diferite
+    // Set each pin individually because they are on different ports
     if (nibble & 0x01) 
         LCD_D4_PORT |= (1 << LCD_D4_PIN);
     else 
@@ -46,9 +46,9 @@ static void LCD_SendNibble(uint8_t nibble) {
 }
 
 
-//Initializarea LCD-ului prin care trimit secvente de 4 biti (4-bit mode) - 
+//LCD initialization using 4-bit mode sequences
 void LCD_Init(void) {
-    // Setare pinuri ca output
+    // Set pins as output
     LCD_RS_DDR |= (1 << LCD_RS_PIN);
     LCD_E_DDR |= (1 << LCD_E_PIN);
     LCD_D4_DDR |= (1 << LCD_D4_PIN);
@@ -56,7 +56,7 @@ void LCD_Init(void) {
     LCD_D6_DDR |= (1 << LCD_D6_PIN);
     LCD_D7_DDR |= (1 << LCD_D7_PIN);
     
-	//setare pini pe low.
+	// Set pins to low
     LCD_RS_PORT &= ~(1 << LCD_RS_PIN);
     LCD_E_PORT &= ~(1 << LCD_E_PIN);
     LCD_D4_PORT &= ~(1 << LCD_D4_PIN);
@@ -64,10 +64,10 @@ void LCD_Init(void) {
     LCD_D6_PORT &= ~(1 << LCD_D6_PIN);
     LCD_D7_PORT &= ~(1 << LCD_D7_PIN);
     
-	//secventa de initialziare 
-    LCD_RS_PORT &= ~(1 << LCD_RS_PIN);  // RS = 0 pentru comanda.
+	// Initialization sequence
+    LCD_RS_PORT &= ~(1 << LCD_RS_PIN);  // RS = 0 for command
     
-    // Trimite 0x03 de 3 ori (8-bit interface)
+    // Send 0x03 three times (8-bit interface)
     LCD_SendNibble(0x03);
     _delay_ms(5);
     
@@ -77,12 +77,12 @@ void LCD_Init(void) {
     LCD_SendNibble(0x03);
     _delay_us(150);
     
-    //Acum seteaza pe 4 biti.
+    // Now set to 4-bit mode
     LCD_SendNibble(0x02);
     _delay_us(150);
     
 	
-	//Trimitere de biti pentru configurare - folosirea functiilor.
+	// Send configuration bits - using functions
     LCD_SendCommand(0x28); // Function set: 4-bit, 2 lines, 5x8 font
     LCD_SendCommand(0x0C); // Display ON, cursor OFF, blink OFF
     LCD_SendCommand(0x06); // Entry mode: increment cursor, no shift
@@ -104,7 +104,7 @@ void LCD_SendData(uint8_t data) {
 }
 
 //------------------------------------------------------
-//Functii de baza
+// Basic functions
 
 void LCD_WriteChar(char c) {
     LCD_SendData((uint8_t)c);

@@ -3,14 +3,14 @@
 #include <avr/io.h>
 #include <util/delay.h>
 #include <avr/interrupt.h>
-#include "max30102.h"
+#include "../inc/max30102.h"
 #include "../Config/i2c.h"
 #include "../Config/uart.h"
-#include "../LCD/LCD.h"
+#include "../inc/LCD.h"
 #include <stdio.h>
 
 
-//init parametrii necesari de functionare a senzorului.
+//Initialize sensor parameters
 #define RATE_SIZE 4
 #define AVG_SIZE 5
 #define SPO2_BUFFER_SIZE 100
@@ -45,67 +45,67 @@ float SpO2 = 0;
 volatile unsigned long millisCounter = 0;
 
 //================================================================================================================================================
-// Functii de baza - Comunicare cu senzorul MAX30102 via I2C
+// Basic functions - Communication with MAX30102 sensor via I2C
 
-// max30102_write_reg - scrie o valoare intr-un registru al senzorului
-// Parametri: reg (adresa registrului), value (valoarea de scris pe 8 biti)
-// Foloseste I2C pentru a comunica cu senzorul la adresa MAX30102_ADDRESS
+// max30102_write_reg - Write a value to a sensor register
+// Parameters: reg (register address), value (8-bit value to write)
+// Uses I2C to communicate with the sensor at MAX30102_ADDRESS
 void max30102_write_reg(uint8_t reg, uint8_t value) {
     i2c_write_register(MAX30102_ADDRESS, reg, value);
 }
 
-// max30102_read_reg - citeste o valoare dintr-un registru al senzorului
-// Parametri: reg (adresa registrului)
-// Returnare: valoarea din registru pe 8 biti
-// Foloseste I2C pentru a comunica cu senzorul
+// max30102_read_reg - Read a value from a sensor register
+// Parameters: reg (register address)
+// Return: 8-bit value from register
+// Uses I2C to communicate with the sensor
 uint8_t max30102_read_reg(uint8_t reg) {
     return i2c_read_register(MAX30102_ADDRESS, reg);
 }
 
-// max30102_read_fifo - citeste mai multi bytes din FIFO-ul senzorului
-// Parametri: buffer (pointer unde se stocheaza datele), length (numarul de bytes)
-// Foloseste I2C pentru a citi datele din MAX30102_FIFODATA
+// max30102_read_fifo - Read multiple bytes from sensor FIFO
+// Parameters: buffer (pointer where data is stored), length (number of bytes)
+// Uses I2C to read data from MAX30102_FIFODATA
 void max30102_read_fifo(uint8_t *buffer, uint8_t length) {
     i2c_read_bytes(MAX30102_ADDRESS, MAX30102_FIFODATA, buffer, length);
 }
 
-// max30102_init - verifica daca senzorul este conectat si functioneaza
-// Returnare: true daca ID-ul partii este 0x15 (MAX30102 corect detectat), false altfel
-// Citeste registrul MAX30102_PARTID pentru a verifica tipul senzorului
+// max30102_init - Check if sensor is connected and working
+// Return: true if part ID is 0x15 (MAX30102 correctly detected), false otherwise
+// Reads MAX30102_PARTID register to verify sensor type
 bool max30102_init(void) {
     uint8_t partID = max30102_read_reg(MAX30102_PARTID);
     return (partID == 0x15);
 }
 
-// max30102_reset - reseteaza complet senzorul
-// Scrie MODE_RESET in registrul MODECONFIG, apoi asteapta 100ms pentru finalizare
+// max30102_reset - Completely reset the sensor
+// Writes MODE_RESET to MODECONFIG register, then waits 100ms for completion
 void max30102_reset(void) {
     max30102_write_reg(MAX30102_MODECONFIG, MODE_RESET);
     _delay_ms(100);
 }
 
-// max30102_check - verifica daca senzorul este conectat si afiseaza mesaj
-// Foloseste max30102_init() pentru verificare
-// Afiseaza prin UART "Senzor OK" sau "Senzor nedetectat"
-// Daca nu e detectat, intra in bucla infinita pentru a opri executia
+// max30102_check - Check if sensor is connected and display message
+// Uses max30102_init() for verification
+// Displays via UART "Sensor OK" or "Sensor not detected"
+// If not detected, enters infinite loop to stop execution
 void max30102_check(void){
         if (!max30102_init()) {
-        uart_puts("Senzor nedetectat \n");
+        uart_puts("Sensor not detected \n");
         while(1);
     }
     else{
-        uart_puts("Senzor OK\r\n");
+        uart_puts("Sensor OK\r\n");
     }
 }
 
-// max30102_setup - configureaza parametrii de functionare ai senzorului
-// Parametri:
-//   ledBrightness - puterea LED-ului (0-255), valori tipice 0-100
-//   sampleAvg - numarul de mostre mediate (SAMPLEAVG_1 pana SAMPLEAVG_32)
-//   sampleRate - frecventa de esantionare in Hz (SAMPLERATE_50 pana SAMPLERATE_3200)
-//   pulseWidth - latimea pulsului LED in microsecunde (PULSEWIDTH_69 pana PULSEWIDTH_411)
-//   adcRange - intervalul ADC pentru masurare (ADCRANGE_2048 pana ADCRANGE_16384)
-// Etape: reset -> FIFO config -> mode config -> particle config -> LED config -> multi-LED config -> clear FIFO
+// max30102_setup - Configure sensor operating parameters
+// Parameters:
+//   ledBrightness - LED power (0-255), typical values 0-100
+//   sampleAvg - number of averaged samples (SAMPLEAVG_1 to SAMPLEAVG_32)
+//   sampleRate - sampling frequency in Hz (SAMPLERATE_50 to SAMPLERATE_3200)
+//   pulseWidth - LED pulse width in microseconds (PULSEWIDTH_69 to PULSEWIDTH_411)
+//   adcRange - ADC range for measurement (ADCRANGE_2048 to ADCRANGE_16384)
+// Steps: reset -> FIFO config -> mode config -> particle config -> LED config -> multi-LED config -> clear FIFO
 void max30102_setup(uint8_t ledBrightness, uint8_t sampleAvg, uint8_t sampleRate, uint8_t pulseWidth, uint8_t adcRange) {
     max30102_reset();
     
@@ -124,32 +124,32 @@ void max30102_setup(uint8_t ledBrightness, uint8_t sampleAvg, uint8_t sampleRate
     max30102_clear_fifo();
 }
 
-// max30102_clear_fifo - sterge toate datele din coada FIFO
-// Reseteaza pointerii: FIFOWRITEPTR, FIFOOVERFLOW, FIFOREADPTR la 0
+// max30102_clear_fifo - Clear all data from FIFO queue
+// Reset pointers: FIFOWRITEPTR, FIFOOVERFLOW, FIFOREADPTR to 0
 void max30102_clear_fifo(void) {
     max30102_write_reg(MAX30102_FIFOWRITEPTR, 0x00);
     max30102_write_reg(MAX30102_FIFOOVERFLOW, 0x00);
     max30102_write_reg(MAX30102_FIFOREADPTR, 0x00);
 }
 
-// max30102_get_read_ptr - obtine pozitia pointerului de citire din FIFO
-// Returnare: pozitia pointerului (0-31)
-// Citeste registrul MAX30102_FIFOREADPTR
+// max30102_get_read_ptr - Get FIFO read pointer position
+// Return: pointer position (0-31)
+// Reads MAX30102_FIFOREADPTR register
 uint8_t max30102_get_read_ptr(void) {
     return max30102_read_reg(MAX30102_FIFOREADPTR);
 }
 
-// max30102_get_write_ptr - obtine pozitia pointerului de scriere in FIFO
-// Returnare: pozitia pointerului (0-31)
-// Citeste registrul MAX30102_FIFOWRITEPTR
+// max30102_get_write_ptr - Get FIFO write pointer position
+// Return: pointer position (0-31)
+// Reads MAX30102_FIFOWRITEPTR register
 uint8_t max30102_get_write_ptr(void) {
     return max30102_read_reg(MAX30102_FIFOWRITEPTR);
 }
 
-// max30102_read_sample - citeste o pereche de mostre (red si infrarosu)
-// Parametri: red (pointer la valoare red), ir (pointer la valoare infrarosu)
-// Citeste 6 bytes din FIFO: bytes 0-2 (red), bytes 3-5 (infrarosu)
-// Mascare la 18 biti (0x3FFFF) deoarece senzorul foloseste 18 biti
+// max30102_read_sample - Read a pair of samples (red and infrared)
+// Parameters: red (pointer to red value), ir (pointer to infrared value)
+// Reads 6 bytes from FIFO: bytes 0-2 (red), bytes 3-5 (infrared)
+// Masked to 18 bits (0x3FFFF) because sensor uses 18 bits
 void max30102_read_sample(uint32_t *red, uint32_t *ir) {
     uint8_t buffer[6];
     max30102_read_fifo(buffer, 6);
@@ -161,22 +161,22 @@ void max30102_read_sample(uint32_t *red, uint32_t *ir) {
     *ir &= 0x3FFFF;
 }
 
-// max30102_get_red - obtine doar valoarea LED-ului rosu din FIFO
-// Returnare: valoare red pe 18 biti
-// Citeste 6 bytes si extrage primii 3 pentru red
+// max30102_get_red - Get only red LED value from FIFO
+// Return: red value in 18 bits
+// Reads 6 bytes and extracts first 3 for red
 uint32_t max30102_get_red(void) {
     uint8_t buffer[6];
     max30102_read_fifo(buffer, 6);
-    //Comentariu
+    // Comment
     uint32_t red = ((uint32_t)buffer[0] << 16) | ((uint32_t)buffer[1] << 8) | buffer[2];
     red &= 0x3FFFF;
     
-    return red;si iti 
+    return red;
 }
 
-// max30102_get_ir - obtine doar valoarea LED-ului infrarosu din FIFO
-// Returnare: valoare infrarosu pe 18 biti
-// Citeste 6 bytes si extrage ultimi 3 pentru infrarosu
+// max30102_get_ir - Get only infrared LED value from FIFO
+// Return: infrared value in 18 bits
+// Reads 6 bytes and extracts last 3 for infrared
 uint32_t max30102_get_ir(void) {
     uint8_t buffer[6];
     max30102_read_fifo(buffer, 6);
@@ -187,13 +187,13 @@ uint32_t max30102_get_ir(void) {
     return ir;
 }
 
-//sfarsit functii de baza.
+// End of basic functions
 //======================================================================================================================
-// Functii de lucru intermediare si functii de calcul pentru valorile dorite
+// Intermediate working functions and calculation functions for desired values
 
-// Timer cu incrementare la fiecare 1ms
-// Prescaler folosit: 64 -> 16MHz/64 = 250kHz, 250kHz/250 = 1ms perioada
-// Registri: TCCR1B (mod CTC), OCR1A (perioada), TIMSK1 (intrerupere)
+// Timer with increment every 1ms
+// Prescaler used: 64 -> 16MHz/64 = 250kHz, 250kHz/250 = 1ms period
+// Registers: TCCR1B (CTC mode), OCR1A (period), TIMSK1 (interrupt)
 void timer_init(void) {
 	TCCR1B = (1 << WGM12) | (1 << CS11) | (1 << CS10);
 	OCR1A = 249;
@@ -201,31 +201,31 @@ void timer_init(void) {
 	sei();
 }
 
-// millis - returneaza numarul de milisecunde de la pornire
-// Returnare: valoarea millisCounter (numara la fiecare intrerupere a timerului)
+// millis - Returns number of milliseconds since startup
+// Return: millisCounter value (counts at each timer interrupt)
 unsigned long millis(void) {
 	return millisCounter;
 }
 
-// ISR(TIMER1_COMPA_vect) - rutina de intrerupere a timerului
-// Se executa la fiecare 1ms si incrementeaza millisCounter
-// Aceasta functie este apelata automat de microcontroler
+// ISR(TIMER1_COMPA_vect) - Timer interrupt routine
+// Executes every 1ms and increments millisCounter
+// This function is automatically called by the microcontroller
 ISR(TIMER1_COMPA_vect) {
 	millisCounter++;
 }
 
-// Calcul BPM: beatsPerMinute = 60000ms / intervalul dintre batai in ms
+// BPM calculation: beatsPerMinute = 60000ms / interval between beats in ms
 
-// calculateSpO2 - calculeaza saturatia de oxigen (SpO2) din bufferele red si infrarosu
-// Foloseste bufferele irBuffer si redBuffer care contin SPO2_BUFFER_SIZE mostre
-// Algoritm: calculeaza AC/DC ratio pentru fiecare LED si determina SpO2
-// Rezultat stocat in variabila globala SpO2
+// calculateSpO2 - Calculate oxygen saturation (SpO2) from red and infrared buffers
+// Uses irBuffer and redBuffer containing SPO2_BUFFER_SIZE samples
+// Algorithm: calculates AC/DC ratio for each LED and determines SpO2
+// Result stored in global variable SpO2
 void calculateSpO2(void) {
     uint32_t irMax = 0, irMin = 999999;
     uint32_t redMax = 0, redMin = 999999;
     unsigned long irSum = 0, redSum = 0;
     
-    // Gaseste valori max, min si suma pentru ambele LED-uri
+    // Find max, min and sum values for both LEDs
     for (int i = 0; i < SPO2_BUFFER_SIZE; i++) {
         if (irBuffer[i] > irMax) irMax = irBuffer[i];
         if (irBuffer[i] < irMin) irMin = irBuffer[i];
@@ -236,7 +236,7 @@ void calculateSpO2(void) {
         redSum += redBuffer[i];
     }
     
-    // Calculeaza componente AC si DC
+    // Calculate AC and DC components
     float irAC = (float)(irMax - irMin);
     float redAC = (float)(redMax - redMin);
     float irDC = (float)irSum / (float)SPO2_BUFFER_SIZE;

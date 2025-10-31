@@ -122,12 +122,6 @@
     </ToolchainSettings>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="AD8232\AD8232.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="AD8232\AD8232.h">
-      <SubType>compile</SubType>
-    </Compile>
     <Compile Include="Config\ADC.c">
       <SubType>compile</SubType>
     </Compile>
@@ -140,27 +134,32 @@
     <Compile Include="Config\uart.h">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="LCD\LCD.c">
+    <Compile Include="inc\AD8232.h">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="LCD\LCD.h">
+    <Compile Include="inc\LCD.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="inc\max30102.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="main.c">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="MAX30102\max30102.c">
+    <Compile Include="src\AD8232.c">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="MAX30102\max30102.h">
+    <Compile Include="src\LCD.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\max30102.c">
       <SubType>compile</SubType>
     </Compile>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Config" />
-    <Folder Include="MAX30102" />
-    <Folder Include="LCD" />
-    <Folder Include="AD8232" />
+    <Folder Include="inc" />
+    <Folder Include="src" />
   </ItemGroup>
   <Import Project="$(AVRSTUDIO_EXE_PATH)\\Vs\\Compiler.targets" />
 </Project>

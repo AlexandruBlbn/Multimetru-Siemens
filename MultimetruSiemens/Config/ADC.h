@@ -13,14 +13,14 @@
 #include <stdint.h>
 
 
-//initializare ADC
+// ADC initialization
 void adc_init(void);
-//selectare canal ADC
+// ADC channel selection
 void adc_selectCanal(uint8_t canal);
-//citire adc
+// Read ADC
 uint16_t adc_read(void);
-//citire adc cu mediere (pentru reducerea zgomotului)
-uint16_t adc_readAverage(uint8_t canal);
+// Read ADC with averaging (for noise reduction)
+uint16_t adc_readAverage(uint8_t esantioane);
 
 
 

@@ -10,10 +10,10 @@
 
 #include <stdint.h>
 
-#define AD8232_OUTPUT_PIN    0   // Pinul digital conectat la OUTPUT (ADC0 - A0)
-//Pini pentru detectare de electrozi.
-#define AD8232_LO_PLUS       1 // Pinul ADC1
-#define AD8232_LO_MINUS      2 // Pinul ADC2
+#define AD8232_OUTPUT_PIN    0   // Digital pin connected to OUTPUT (ADC0 - A0)
+// Pins for electrode detection
+#define AD8232_LO_PLUS       1 // Pin ADC1
+#define AD8232_LO_MINUS      2 // Pin ADC2
 
 uint16_t AD8232_readOutput(void);
 uint16_t AD8232_readOutput_Average(uint8_t esantioane);
