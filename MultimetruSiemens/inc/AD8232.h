@@ -22,5 +22,10 @@ uint16_t AD8232_readLOMinus(void);
 uint8_t AD8232_readLO_Ambele(uint8_t *lo_plus, uint8_t *lo_minus);
 void AD8232_init(void);
 
+// Converteste ADC la Volts
+float AD8232_readVoltage(void);
+
+// EKG Streaming Real-Time
+void AD8232_startStreaming(void);
 
 #endif /* AD8232_H_ */

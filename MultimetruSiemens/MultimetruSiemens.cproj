@@ -137,6 +137,9 @@
     <Compile Include="inc\AD8232.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="inc\HX710B.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="inc\LCD.h">
       <SubType>compile</SubType>
     </Compile>
@@ -147,6 +150,9 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\AD8232.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\HX710B.c">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\LCD.c">

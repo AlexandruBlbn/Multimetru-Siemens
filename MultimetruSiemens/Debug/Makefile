@@ -43,6 +43,7 @@ C_SRCS +=  \
 ../Config/ADC.c \
 ../main.c \
 ../src/AD8232.c \
+../src/HX710B.c \
 ../src/LCD.c \
 ../src/max30102.c
 
@@ -57,6 +58,7 @@ OBJS +=  \
 Config/ADC.o \
 main.o \
 src/AD8232.o \
+src/HX710B.o \
 src/LCD.o \
 src/max30102.o
 
@@ -64,6 +66,7 @@ OBJS_AS_ARGS +=  \
 Config/ADC.o \
 main.o \
 src/AD8232.o \
+src/HX710B.o \
 src/LCD.o \
 src/max30102.o
 
@@ -71,6 +74,7 @@ C_DEPS +=  \
 Config/ADC.d \
 main.d \
 src/AD8232.d \
+src/HX710B.d \
 src/LCD.d \
 src/max30102.d
 
@@ -78,6 +82,7 @@ C_DEPS_AS_ARGS +=  \
 Config/ADC.d \
 main.d \
 src/AD8232.d \
+src/HX710B.d \
 src/LCD.d \
 src/max30102.d
 
@@ -110,6 +115,13 @@ Config/ADC.o: ../Config/ADC.c
 	
 
 src/AD8232.o: ../src/AD8232.c
+	@echo Building file: $<
+	@echo Invoking: AVR/GNU C Compiler : 5.4.0
+	$(QUOTE)C:\Program Files (x86)\Atmel\Studio\7.0\toolchain\avr8\avr8-gnu-toolchain\bin\avr-gcc.exe$(QUOTE)  -x c -funsigned-char -funsigned-bitfields -DDEBUG  -I"C:\Program Files (x86)\Atmel\Studio\7.0\Packs\Atmel\ATmega_DFP\2.2.509\include"  -Og -ffunction-sections -fdata-sections -fpack-struct -fshort-enums -mrelax -g2 -Wall -mmcu=atmega2560 -B "C:\Program Files (x86)\Atmel\Studio\7.0\Packs\Atmel\ATmega_DFP\2.2.509\gcc\dev\atmega2560" -c -std=gnu99 -MD -MP -MF "$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -MT"$(@:%.o=%.o)"   -o "$@" "$<" 
+	@echo Finished building: $<
+	
+
+src/HX710B.o: ../src/HX710B.c
 	@echo Building file: $<
 	@echo Invoking: AVR/GNU C Compiler : 5.4.0
 	$(QUOTE)C:\Program Files (x86)\Atmel\Studio\7.0\toolchain\avr8\avr8-gnu-toolchain\bin\avr-gcc.exe$(QUOTE)  -x c -funsigned-char -funsigned-bitfields -DDEBUG  -I"C:\Program Files (x86)\Atmel\Studio\7.0\Packs\Atmel\ATmega_DFP\2.2.509\include"  -Og -ffunction-sections -fdata-sections -fpack-struct -fshort-enums -mrelax -g2 -Wall -mmcu=atmega2560 -B "C:\Program Files (x86)\Atmel\Studio\7.0\Packs\Atmel\ATmega_DFP\2.2.509\gcc\dev\atmega2560" -c -std=gnu99 -MD -MP -MF "$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -MT"$(@:%.o=%.o)"   -o "$@" "$<" 

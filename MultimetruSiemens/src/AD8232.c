@@ -11,6 +11,17 @@
 
 #include "../inc/AD8232.h"
 #include "../Config/ADC.h"
+#include "../Config/uart.h"
+#include <util/delay.h>
+
+// Configuratie sampling
+#define SAMPLE_INTERVAL 10   // 10ms pentru 100 Hz
+
+// Fara filtre - direct RAW
+
+// ADC Reference Voltage
+#define ADC_VREF 3.3f  // 5V reference (schimba la 3.3f daca folosesti 3.3V)
+#define ADC_MAX 1023.0f
 
 
 void AD8232_init(void){
@@ -44,4 +55,49 @@ uint8_t AD8232_readLO_Ambele(uint8_t *lo_plus, uint8_t *lo_minus){
     *lo_minus = (uint8_t)AD8232_readLOMinus();
     return 1;  // Return status OK
 }
+
+
+// //------------------------------------------
+// // Converteste ADC la Volts
+// //------------------------------------------
+
+// float AD8232_readVoltage(void) {
+//     uint16_t adcValue = AD8232_readOutput();
+//     float voltage = (adcValue / ADC_MAX) * ADC_VREF;
+//     return voltage;
+// }
+
+
+// //------------------------------------------
+// // EKG Streaming Real-Time
+// //------------------------------------------
+
+// volatile uint8_t ad8232_streaming = 0;
+
+// void AD8232_startStreaming(void) {
+//     ad8232_streaming = 1;
+//     uart_puts("EKG Streaming started (100 Hz, Voltage output)...\r\n");
+//     uart_puts("Send 'S' to stop\r\n");
+    
+//     while(ad8232_streaming) {
+//         // Citeste tensiunea in volti
+//         float voltage = AD8232_readVoltage();
+        
+//         // Trimite pe UART cu 3 zecimale
+//         uart_putFloat(voltage, 3);
+//         uart_puts("\r\n");
+        
+//         // Delay pentru 100 Hz sampling (10ms)
+//         _delay_ms(10);
+        
+//         // Verifica comanda de oprire
+//         if (UCSR0A & (1 << RXC0)) {
+//             char cmd = uart_getc();
+//             if (cmd == 'S' || cmd == 's') {
+//                 ad8232_streaming = 0;
+//                 uart_puts("\r\nEKG Streaming stopped\r\n");
+//             }
+//         }
+//     }
+// }
 
