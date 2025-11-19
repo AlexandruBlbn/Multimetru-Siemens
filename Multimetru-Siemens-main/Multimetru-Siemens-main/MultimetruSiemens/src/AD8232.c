@@ -68,9 +68,9 @@ void AD8232_Start(void) {
     // Mesaj LCD initial
     LCD_Clear();
     LCD_SetCursor(0,0); 
-    LCD_WriteString("EKG Recording...");
+    LCD_WriteString("Inregistrare");
     LCD_SetCursor(1,0);
-    LCD_WriteString("Please wait...");
+    LCD_WriteString("Asteapta.");
     
     // Verificare electrozi inainte de a incepe
     uint16_t lo_plus = AD8232_readLOPlus();
@@ -94,12 +94,7 @@ void AD8232_Start(void) {
     // Mesaj finalizare
     LCD_Clear();
     LCD_SetCursor(0,0); 
-    LCD_WriteString("Recording done!");
-    LCD_SetCursor(1,0);
-    char buf[20];
-    itoa(ekg_sample_count, buf, 10);
-    LCD_WriteString(buf);
-    LCD_WriteString(" samples");
+    LCD_WriteString("Gata");
     _delay_ms(2000);
 }
 

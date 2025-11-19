@@ -13,6 +13,7 @@
 #include "inc/AD8232.h"
 #include "inc/max30102.h"
 #include "inc/HX710B.h"
+#include "inc/intrerupts.h"
 
 volatile bool g_stop_measurement = false;
 
@@ -23,6 +24,10 @@ void AVR_init(void) {
     timer_init();
     LCD_Init();
     max30102_init();
+    AD8232_init();
+    HX710B_Init();
+    Interrupts_Init();
+    sei();
 }
 
 int main(void) 
@@ -31,12 +36,8 @@ int main(void)
     LCD_Clear();
     LCD_WriteString("Pornit.");
     _delay_ms(1000);
-    MAX30102_Start();
+    MenuLoop();
     
-    while(1) 
-    {
-        // Main loop
-    }
  
     return 0; 
 }

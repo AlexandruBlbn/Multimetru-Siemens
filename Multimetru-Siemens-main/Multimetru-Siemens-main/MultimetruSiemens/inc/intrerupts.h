@@ -5,5 +5,6 @@
 #include <avr/interrupt.h>
 
 void Interrupts_Init(void);
+void MenuLoop(void);
 
 #endif /* INTRERUPTS_H_ */
