@@ -65,6 +65,7 @@ void LCD_Init(void) {
     LCD_D7_PORT &= ~(1 << LCD_D7_PIN);
     
 	// Initialization sequence
+    _delay_ms(50);  // Wait for LCD to power up
     LCD_RS_PORT &= ~(1 << LCD_RS_PIN);  // RS = 0 for command
     
     // Send 0x03 three times (8-bit interface)
@@ -72,14 +73,14 @@ void LCD_Init(void) {
     _delay_ms(5);
     
     LCD_SendNibble(0x03);
-    _delay_us(150);
+    _delay_ms(1);
     
     LCD_SendNibble(0x03);
-    _delay_us(150);
+    _delay_ms(1);
     
     // Now set to 4-bit mode
     LCD_SendNibble(0x02);
-    _delay_us(150);
+    _delay_ms(1);
     
 	
 	// Send configuration bits - using functions
@@ -93,7 +94,7 @@ void LCD_SendCommand(uint8_t cmd) {
     LCD_RS_PORT &= ~(1 << LCD_RS_PIN); // RS = 0 (command)
     LCD_SendNibble(cmd >> 4);           // High nibble
     LCD_SendNibble(cmd);                // Low nibble
-    _delay_us(100);                     // Wait for command to complete
+    _delay_ms(2);                       // Wait for command to complete
 }
 
 void LCD_SendData(uint8_t data) {

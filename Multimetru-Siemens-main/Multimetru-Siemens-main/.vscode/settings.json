@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "io.h": "c",
+        "max30102.h": "c",
+        "lcd.h": "c"
+    }
+}

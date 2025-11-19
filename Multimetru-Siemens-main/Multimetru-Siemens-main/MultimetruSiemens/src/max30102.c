@@ -9,6 +9,9 @@
 #include "../inc/LCD.h"
 #include <stdio.h>
 
+// External stop flag from main
+extern volatile bool g_stop_measurement;
+
 
 //Initialize sensor parameters
 #define RATE_SIZE 4
@@ -316,6 +319,12 @@ void MAX30102_Start(void){
     
     // Bucla infinita de citire si procesare
     while(1) {
+        // Check for stop request
+        if (g_stop_measurement) {
+            uart_puts("Stop solicitat, iesire din masurare SPO2\r\n");
+            break;
+        }
+        
         // Verifica daca sunt date noi in FIFO
         uint8_t readPtr = max30102_get_read_ptr();
         uint8_t writePtr = max30102_get_write_ptr();

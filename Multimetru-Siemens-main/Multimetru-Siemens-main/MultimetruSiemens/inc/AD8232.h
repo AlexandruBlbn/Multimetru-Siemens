@@ -21,8 +21,13 @@ uint16_t AD8232_readLOPlus(void);
 uint16_t AD8232_readLOMinus(void);
 uint8_t AD8232_readLO_Ambele(uint8_t *lo_plus, uint8_t *lo_minus);
 void AD8232_init(void);
+void AD8232_Start(void);
 
-// Converteste ADC la Volts
+// Buffer access pentru transmitere UART
+extern uint16_t ekg_buffer[];
+extern uint16_t ekg_sample_count;
+
+// from mV in range 0-1024 (0-5V)
 float AD8232_readVoltage(void);
 
 // EKG Streaming Real-Time

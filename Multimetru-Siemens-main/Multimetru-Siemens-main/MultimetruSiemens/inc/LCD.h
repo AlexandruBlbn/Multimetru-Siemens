@@ -11,33 +11,35 @@
 
 #include <stdint.h>
 
-// Connected pins: RS=53, E=52, D4=51, D5=50, D6=49, D7=48 (atmega2560)
+// Connected pins: RS=45, E=41, D4=29, D5=27, D6=25, D7=23 (atmega2560)
 
 // VSS - GND, VDD - 5V, V0 - 2 resistors in series of 110 ohms - GND, A - 5V, K - 5V
-#define LCD_RS_PORT PORTB
-#define LCD_RS_DDR  DDRB
-#define LCD_RS_PIN  0        // Pin 53 (PB0) read/write
+//RS=43, E - 41, D4=39, D5=37, D6=35, D7=33
 
-#define LCD_E_PORT PORTB
-#define LCD_E_DDR  DDRB
-#define LCD_E_PIN  1         // Pin 52 (PB1)
+#define LCD_RS_PORT PORTL
+#define LCD_RS_DDR  DDRL
+#define LCD_RS_PIN  4        // Pin 45 (PL4) read/write
+
+#define LCD_E_PORT PORTG
+#define LCD_E_DDR  DDRG
+#define LCD_E_PIN  0         // Pin 41 (PG0)
 
 // D4-D7 - Ports for bit transfer on LCD
-#define LCD_D4_PORT PORTB
-#define LCD_D4_DDR  DDRB
-#define LCD_D4_PIN  2        // Pin 51 (PB2) -> D4
+#define LCD_D4_PORT PORTA
+#define LCD_D4_DDR  DDRA
+#define LCD_D4_PIN  7        // Pin 29 (PA7) -> D4
 
-#define LCD_D5_PORT PORTB
-#define LCD_D5_DDR  DDRB
-#define LCD_D5_PIN  3        // Pin 50 (PB3) -> D5
+#define LCD_D5_PORT PORTA
+#define LCD_D5_DDR  DDRA
+#define LCD_D5_PIN  5        // Pin 27 (PA5) -> D5
 
-#define LCD_D6_PORT PORTL
-#define LCD_D6_DDR  DDRL
-#define LCD_D6_PIN  0        // Pin 49 (PL0) -> D6
+#define LCD_D6_PORT PORTA
+#define LCD_D6_DDR  DDRA
+#define LCD_D6_PIN  3        // Pin 25 (PA3) -> D6
 
-#define LCD_D7_PORT PORTL
-#define LCD_D7_DDR  DDRL
-#define LCD_D7_PIN  1        // Pin 48 (PL1) -> D7
+#define LCD_D7_PORT PORTA
+#define LCD_D7_DDR  DDRA
+#define LCD_D7_PIN  1        // Pin 23 (PA1) -> D7
 
 // LCD Commands 8-bit registers - page 24 documentation LCD table 6
 #define LCD_CLEAR 00000001
@@ -49,7 +51,8 @@
 #define LCD_SET_CGRAM_ADDR 01000000
 #define LCD_SET_DDRAM_ADDR 10000000
 
-// functii SPECIFICE LCD-ului (vezi documentatie tabel 6) pentru functionare.
+
+// Specific LCD functions (see documentation table 6) for how it works.
 void LCD_Init(void);
 void LCD_SendCommand(uint8_t cmd);
 void LCD_SendData(uint8_t data);
