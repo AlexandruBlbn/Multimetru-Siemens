@@ -1,4 +1,4 @@
-#define F_CPU 16000000UL
+// #define F_CPU 16000000UL // Removed: defined by build system
 
 #include <avr/io.h>
 #include <util/delay.h>
@@ -46,6 +46,48 @@ uint8_t bufferReady = 0;
 float SpO2 = 0;
 
 volatile unsigned long millisCounter = 0;
+
+void timer_init(void) {
+	TCCR1B = (1 << WGM12) | (1 << CS11) | (1 << CS10);
+	OCR1A = 249;
+	TIMSK1 = (1 << OCIE1A);
+	sei();
+}
+
+// millis - Returns number of milliseconds since startup
+unsigned long millis(void) {
+    unsigned long m;
+    uint8_t oldSREG = SREG;
+    cli();
+    m = millisCounter;
+    SREG = oldSREG;
+	return m;
+}
+
+// micros - Returns number of microseconds since startup
+unsigned long micros(void) {
+    unsigned long m;
+    uint16_t t;
+    uint8_t oldSREG = SREG;
+    
+    cli();
+    m = millisCounter;
+    t = TCNT1;
+    
+    // Check for pending interrupt (timer wrapped but ISR didn't run yet)
+    if ((TIFR1 & (1 << OCF1A)) && (t < 249)) {
+        m++;
+        t = TCNT1;
+    }
+    SREG = oldSREG;
+    
+    return (m * 1000) + (t * 4);
+}
+
+// ISR(TIMER1_COMPA_vect) - Timer interrupt routine
+ISR(TIMER1_COMPA_vect) {
+	millisCounter++;
+}
 
 //================================================================================================================================================
 // Basic functions - Communication with MAX30102 sensor via I2C
@@ -197,6 +239,7 @@ uint32_t max30102_get_ir(void) {
 // Timer with increment every 1ms
 // Prescaler used: 64 -> 16MHz/64 = 250kHz, 250kHz/250 = 1ms period
 // Registers: TCCR1B (CTC mode), OCR1A (period), TIMSK1 (interrupt)
+/*
 void timer_init(void) {
 	TCCR1B = (1 << WGM12) | (1 << CS11) | (1 << CS10);
 	OCR1A = 249;
@@ -216,6 +259,7 @@ unsigned long millis(void) {
 ISR(TIMER1_COMPA_vect) {
 	millisCounter++;
 }
+*/
 
 // BPM calculation: beatsPerMinute = 60000ms / interval between beats in ms
 

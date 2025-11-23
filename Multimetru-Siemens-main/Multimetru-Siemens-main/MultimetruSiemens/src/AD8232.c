@@ -5,34 +5,41 @@
  *  Author: Alexandru
  */ 
 
-
-//-----------------------
-// Configuration and operation functions
-
 #include "../inc/AD8232.h"
 #include "../Config/ADC.h"
 #include "../inc/LCD.h"
+#include "../Config/uart.h"
 #include <util/delay.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <stdbool.h>
 
-// Configuratie sampling si buffer
-#define SAMPLE_INTERVAL_MS 10     // 10ms pentru 100 Hz
-#define SAMPLE_DURATION_SEC 10    // Durata de colectare (secunde)
-#define BUFFER_SIZE (SAMPLE_DURATION_SEC * 1000 / SAMPLE_INTERVAL_MS)  // 1000 esantioane pentru 10s
+#define AD8232_STREAM_DELAY_MS     10      // 100 Hz sampling
+#define AD8232_LCD_REFRESH_CYCLES  (1000 / AD8232_STREAM_DELAY_MS)
+#define AD8232_LO_CONNECTED_MAX    150     // valori mici => electrozi conectati
+#define AD8232_LO_DISCONNECTED_MIN 850     // valori mari => electrozi desprinsi
 
-// Buffer global pentru valorile EKG
-uint16_t ekg_buffer[BUFFER_SIZE];
+#define ADC_REF_VOLTAGE            3.3f
+#define ADC_MAX_VALUE              1023.0f
+
+uint16_t ekg_buffer[1] = {0};
 uint16_t ekg_sample_count = 0;
 
-// Fara filtre - direct RAW
+volatile uint8_t ad8232_streaming = 0;
+extern volatile bool g_stop_measurement;
 
-// ADC Reference Voltage
-#define ADC_VREF 3.3f  // 5V reference (schimba la 3.3f daca folosesti 3.3V)
-#define ADC_MAX 1023.0f
-
+// Forward declarations
+uint16_t AD8232_readOutput(void);
+uint16_t AD8232_readLOPlus(void);
+uint16_t AD8232_readLOMinus(void);
 
 void AD8232_init(void){
     adc_init(); // ADC initialization
+}
+
+void AD8232_Start(void){
+    ekg_sample_count = 0;
+    ekg_buffer[0] = AD8232_readOutput();
 }
 
 uint16_t AD8232_readOutput(void){
@@ -60,87 +67,59 @@ uint8_t AD8232_readLO_Ambele(uint8_t *lo_plus, uint8_t *lo_minus){
     return 1;  // Return status OK
 }
 
-
-void AD8232_Start(void) {
-    // Resetare buffer
-    ekg_sample_count = 0;
-    
-    // Mesaj LCD initial
-    LCD_Clear();
-    LCD_SetCursor(0,0); 
-    LCD_WriteString("Inregistrare");
-    LCD_SetCursor(1,0);
-    LCD_WriteString("Asteapta.");
-    
-    // Verificare electrozi inainte de a incepe
-    uint16_t lo_plus = AD8232_readLOPlus();
-    uint16_t lo_minus = AD8232_readLOMinus();
-    
-    if(lo_plus > 900 || lo_minus > 900) {
-        LCD_Clear();
-        LCD_SetCursor(0,0);
-        LCD_WriteString("! CHECK PADS !");
-        _delay_ms(2000);
-        return;
-    }
-    
-    // Colectare esantioane
-    for(uint16_t i = 0; i < BUFFER_SIZE; i++) {
-        ekg_buffer[i] = AD8232_readOutput();
-        ekg_sample_count++;
-        _delay_ms(SAMPLE_INTERVAL_MS);
-    }
-    
-    // Mesaj finalizare
-    LCD_Clear();
-    LCD_SetCursor(0,0); 
-    LCD_WriteString("Gata");
-    _delay_ms(2000);
+float AD8232_readVoltage(void) {
+    uint16_t rawValue = AD8232_readOutput();
+    return (rawValue / ADC_MAX_VALUE) * ADC_REF_VOLTAGE;
 }
 
+static void AD8232_sendPacket(uint16_t ekg_value, uint16_t lo_plus, uint16_t lo_minus, bool leads_ok)
+{
+    char packet[40];
+    snprintf(packet, sizeof(packet), "%u,%u,%u,%s\r\n",
+             ekg_value, lo_plus, lo_minus, leads_ok ? "OK" : "FAIL");
+    uart_puts(packet);
+}
 
+void AD8232_startStreaming(void) {
+    ad8232_streaming = 1;
+    LCD_Clear();
+    LCD_SetCursor(0, 0);
+    LCD_WriteString("EKG Streaming");
 
-// //------------------------------------------
-// // Converteste ADC la Volts
-// //------------------------------------------
+    uint16_t lcd_counter = 0;
 
-// float AD8232_readVoltage(void) {
-//     uint16_t adcValue = AD8232_readOutput();
-//     float voltage = (adcValue / ADC_MAX) * ADC_VREF;
-//     return voltage;
-// }
+    while (ad8232_streaming && !g_stop_measurement) {
+        uint16_t lo_plus = AD8232_readLOPlus();
+        uint16_t lo_minus = AD8232_readLOMinus();
+        bool leads_ok = (lo_plus < AD8232_LO_CONNECTED_MAX) && (lo_minus < AD8232_LO_CONNECTED_MAX);
+        bool leads_fail = (lo_plus > AD8232_LO_DISCONNECTED_MIN) || (lo_minus > AD8232_LO_DISCONNECTED_MIN);
 
+        uint16_t ekg_value = AD8232_readOutput();
+        AD8232_sendPacket(ekg_value, lo_plus, lo_minus, leads_ok && !leads_fail);
 
-// //------------------------------------------
-// // EKG Streaming Real-Time
-// //------------------------------------------
+        if (lcd_counter == 0) {
+            LCD_SetCursor(1, 0);
+            if (leads_ok && !leads_fail) {
+                char line[17];
+                snprintf(line, sizeof(line), "Val:%4u", ekg_value);
+                LCD_WriteString(line);
+            } else {
+                LCD_WriteString("! ELECTROZI !   ");
+            }
+        }
 
-// volatile uint8_t ad8232_streaming = 0;
+        lcd_counter++;
+        if (lcd_counter >= AD8232_LCD_REFRESH_CYCLES) {
+            lcd_counter = 0;
+        }
 
-// void AD8232_startStreaming(void) {
-//     ad8232_streaming = 1;
-//     uart_puts("EKG Streaming started (100 Hz, Voltage output)...\r\n");
-//     uart_puts("Send 'S' to stop\r\n");
-    
-//     while(ad8232_streaming) {
-//         // Citeste tensiunea in volti
-//         float voltage = AD8232_readVoltage();
-        
-//         // Trimite pe UART cu 3 zecimale
-//         uart_putFloat(voltage, 3);
-//         uart_puts("\r\n");
-        
-//         // Delay pentru 100 Hz sampling (10ms)
-//         _delay_ms(10);
-        
-//         // Verifica comanda de oprire
-//         if (UCSR0A & (1 << RXC0)) {
-//             char cmd = uart_getc();
-//             if (cmd == 'S' || cmd == 's') {
-//                 ad8232_streaming = 0;
-//                 uart_puts("\r\nEKG Streaming stopped\r\n");
-//             }
-//         }
-//     }
-// }
+        _delay_ms(AD8232_STREAM_DELAY_MS);
+    }
+
+    ad8232_streaming = 0;
+    LCD_Clear();
+    LCD_SetCursor(0, 0);
+    LCD_WriteString("EKG Stopped");
+    _delay_ms(500);
+}
 

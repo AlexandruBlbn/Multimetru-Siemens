@@ -10,9 +10,11 @@
 #define UART_H_
 
 
-
 #define F_CPU 16000000UL
-#define BAUD 115200
+#ifndef STREAM_BAUDRATE
+#define STREAM_BAUDRATE 9600
+#endif
+#define BAUD STREAM_BAUDRATE
 #define UBRR ((F_CPU / (8UL * BAUD)) - 1)
 #include <avr/io.h>
 #include <avr/interrupt.h>

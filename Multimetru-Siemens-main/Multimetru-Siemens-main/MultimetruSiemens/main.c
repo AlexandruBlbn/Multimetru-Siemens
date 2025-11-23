@@ -32,12 +32,14 @@ void AVR_init(void) {
 
 int main(void) 
 {
+
     AVR_init();
     LCD_Clear();
-    LCD_WriteString("Pornit.");
+    LCD_SetCursor(0,0);
     _delay_ms(1000);
-    MenuLoop();
+
     
+    MenuLoop();
  
     return 0; 
 }

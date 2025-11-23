@@ -140,11 +140,12 @@ uint8_t max30102_get_read_ptr(void);
 uint8_t max30102_get_write_ptr(void);
 
 // millis - returneaza numarul de milisecunde de la pornire
-// Returnare: timp in milisecunde (unsigned long)
 unsigned long millis(void);
 
+// micros - returneaza numarul de microsecunde de la pornire
+unsigned long micros(void);
+
 // timer_init - initializeaza timerul pentru millis()
-// Nu are parametri, Nu returneaza nimic
 void timer_init(void);
 
 // MAX30102_Start - functia principala care porneste senzorul si citeste date
