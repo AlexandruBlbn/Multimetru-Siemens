@@ -1,4 +1,4 @@
-#define F_CPU 16000000UL
+// #define F_CPU 16000000UL
 
 #include <avr/io.h>
 #include <util/delay.h>
@@ -8,6 +8,8 @@
 #include "../inc/HX710B.h"
 #include "../Config/uart.h"
 #include "../inc/LCD.h"
+
+extern volatile int menu_option;
 
 //methodology:
 //COde implements a oscilometric method. The HX710B detects pressure fluctuations
@@ -35,11 +37,13 @@ static float hx710b_latest_pressure = 0.0f;
 static float hx710b_latest_osc = 0.0f;
 static bool hx710b_latest_pulse = false;
 static float hx710b_bpm = 0.0f;
+static float hx710b_moving_avg_pressure = 0.0f;
+static uint16_t hx710b_sample_counter = 0;
+
 
 // Forward declarations
 static float HX710B_ApplyFilter(float new_value);
 static float HX710B_DetectOscillation(float pressure_kpa);
-static bool HX710B_DetectPulse(float oscillation_kpa, uint32_t time_ms);
 static void HX710B_PumpControl(bool enabled);
 
 //================================================================================================================================================
@@ -214,6 +218,8 @@ void HX710B_ResetAlgorithm(void) {
     hx710b_latest_osc = 0.0f;
     hx710b_latest_pulse = false;
     hx710b_bpm = 0.0f;
+    hx710b_moving_avg_pressure = 0.0f;
+    hx710b_sample_counter = 0;
 }
 
 static float HX710B_ApplyFilter(float new_value) {
@@ -234,50 +240,50 @@ static float HX710B_ApplyFilter(float new_value) {
     return sum / HX710B_FILTRU_MARIME;
 }
 
-static float HX710B_DetectOscillation(float pressure_kpa) {
-    float oscillation = fabsf(pressure_kpa - hx710b_prev_pressure);
-    hx710b_prev_pressure = pressure_kpa;
 
-    float osc_filtered = (oscillation + hx710b_prev_osc) / 2.0f;
+static float HX710B_DetectOscillation(float pressure_kpa) {
+    if (hx710b_moving_avg_pressure == 0.0f) {
+        hx710b_moving_avg_pressure = pressure_kpa;
+        return 0.0f;
+    }
+    // MODIFICAT: Alpha 0.25 pentru urmarire si mai rapida a pantei
+    hx710b_moving_avg_pressure = (hx710b_moving_avg_pressure * 0.75f) + (pressure_kpa * 0.25f);
+    
+    float raw_oscillation = fabsf(pressure_kpa - hx710b_moving_avg_pressure);
+    float osc_filtered = (raw_oscillation * 0.4f) + (hx710b_prev_osc * 0.6f);
     hx710b_prev_osc = osc_filtered;
+    hx710b_prev_pressure = pressure_kpa;
+    
     return osc_filtered;
 }
 
-static bool HX710B_DetectPulse(float oscillation_kpa, uint32_t time_ms) {
-    if (oscillation_kpa > HX710B_OSC_THRESHOLD_KPA &&
-        (time_ms - hx710b_last_pulse_time) > HX710B_MIN_PULSE_INTERVAL_MS) {
-        hx710b_last_pulse_time = time_ms;
-        if (hx710b_pulse_count == 0) {
-            hx710b_first_pulse_time = time_ms;
-        }
-        hx710b_pulse_count++;
-
-        if (hx710b_pulse_count > 1) {
-            uint32_t elapsed = time_ms - hx710b_first_pulse_time;
-            if (elapsed > 0) {
-                hx710b_bpm = 60000.0f * (hx710b_pulse_count - 1) / elapsed;
-            }
-        }
-
-        if (oscillation_kpa > hx710b_max_osc) {
-            hx710b_max_osc = oscillation_kpa;
-            hx710b_pressure_at_max = hx710b_prev_pressure;
-        }
-
-        return true;
-    }
-
-    return false;
-}
 
 static void HX710B_ProcessSample(float pressure_kpa, uint32_t time_ms) {
     float filtered = HX710B_ApplyFilter(pressure_kpa);
-    float oscillation = HX710B_DetectOscillation(filtered);
-    bool pulse = HX710B_DetectPulse(oscillation, time_ms);
+    
+    hx710b_sample_counter++;
 
+    // MODIFICAT: Redus la 5 esantioane
+    // Deoarece avem delay-ul de 2 secunde inainte de start, nu mai e nevoie sa ignoram mult aici
+    if (hx710b_sample_counter < 5) {
+        if (hx710b_moving_avg_pressure == 0.0f) hx710b_moving_avg_pressure = filtered;
+        else hx710b_moving_avg_pressure = (hx710b_moving_avg_pressure * 0.75f) + (filtered * 0.25f);
+        return; 
+    }
+
+    float oscillation = HX710B_DetectOscillation(filtered);
     hx710b_latest_pressure = filtered;
     hx710b_latest_osc = oscillation;
-    hx710b_latest_pulse = pulse;
+ 
+    // MODIFICAT: Limita relaxata la 24.0 kPa (approx 180 mmHg MAP)
+    // Acum ca presiunea tinta e mai mica (26kPa), riscul de zgomot extrem e redus
+    if (oscillation > 0.05f && pressure_kpa > 5.3f && pressure_kpa < 24.0f) {
+        // Daca oscilatia curenta e mai mare decat maximul gasit pana acum
+        if (oscillation > hx710b_max_osc) {
+            hx710b_max_osc = oscillation;
+            hx710b_pressure_at_max = pressure_kpa; 
+        }
+    }
 }
 
 static void HX710B_FinalizeResult(HX710B_BloodPressureData *result) {
@@ -286,18 +292,27 @@ static void HX710B_FinalizeResult(HX710B_BloodPressureData *result) {
     }
 
     result->presiune_curenta_kpa = hx710b_latest_pressure;
-    result->presiune_curenta_mmhg = hx710b_latest_pressure * 7.5f;
+    result->presiune_curenta_mmhg = hx710b_latest_pressure * 7.50062f; 
     result->oscilatie_kpa = hx710b_latest_osc;
     result->puls_detectat = hx710b_latest_pulse;
     result->bpm = hx710b_bpm;
+    float map_mmhg = hx710b_pressure_at_max * 7.50062f;
 
-    float sistolica = hx710b_pressure_at_max > 0.0f
-                        ? hx710b_pressure_at_max * 7.5f
-                        : result->presiune_curenta_mmhg;
-    float diastolica = sistolica * 0.67f;
+    if (map_mmhg > 0) {
+        // MODIFICAT: Coeficienti echilibrati
+        // Sistolica = MAP * 1.30
+        // Diastolica = MAP * 0.80
+        result->sistolica_mmhg = map_mmhg * 1.30f; 
+        result->diastolica_mmhg = map_mmhg * 0.80f;
+        
+        if (result->sistolica_mmhg - result->diastolica_mmhg < 25) {
+            result->sistolica_mmhg = result->diastolica_mmhg + 25;
+        }
+    } else {
 
-    result->sistolica_mmhg = sistolica;
-    result->diastolica_mmhg = diastolica;
+        result->sistolica_mmhg = result->presiune_curenta_mmhg;
+        result->diastolica_mmhg = result->presiune_curenta_mmhg * 0.7f;
+    }
 }
 
 bool HX710B_StartMeasurement(HX710B_BloodPressureData *result) {
@@ -307,6 +322,16 @@ bool HX710B_StartMeasurement(HX710B_BloodPressureData *result) {
 
     uint32_t simulated_time = 0;
     float pressure = 0.0f;
+    LCD_Clear();
+    LCD_SetCursor(0,0);
+    LCD_WriteString("Umflare");
+    LCD_SetCursor(1,0);
+    LCD_WriteString("Nu te misca");
+
+    // Asiguram ca senzorul e treaz si stabil
+    HX710B_CitesteSenzor();
+    _delay_ms(10);
+    HX710B_ResetAlgorithm();
 
     // Inflate quickly to the target, monitoring only for safety to avoid sensor saturation
     HX710B_PumpControl(true);
@@ -321,7 +346,6 @@ bool HX710B_StartMeasurement(HX710B_BloodPressureData *result) {
         simulated_time += HX710B_SAMPLE_INTERVAL_MS;
 
         if (pressure >= HX710B_INFLATE_SAFETY_KPA) {
-            uart_puts("HX710B: Limita senzor atinsa, opresc pompa\r\n");
             reached_target = true;
             break;
         }
@@ -334,7 +358,7 @@ bool HX710B_StartMeasurement(HX710B_BloodPressureData *result) {
     HX710B_PumpControl(false);
 
     if (!reached_target) {
-        uart_puts("HX710B: Inflatie incompleta, continui cu deflatie\r\n");
+        uart_puts("eroare");
     }
 
     // Allow cuff to stabilize before sampling oscillations during deflation
@@ -368,6 +392,7 @@ void HX710B_Start(void) {
 
     bool measurement_ok = HX710B_StartMeasurement(&bp_data);
 
+    LCD_Clear();
     LCD_SetCursor(0, 0);
     if (measurement_ok) {
         dtostrf(bp_data.sistolica_mmhg, 6, 1, value_buffer);
@@ -381,23 +406,15 @@ void HX710B_Start(void) {
 
         snprintf(bpm_buffer, sizeof(bpm_buffer), "BPM: %.1f", bp_data.bpm);
 
-        uart_puts("Tensiune sistolica: ");
-        uart_puts(sist_buffer);
-        uart_puts("\r\n");
-
-        uart_puts("Tensiune diastolica: ");
-        uart_puts(dias_buffer);
-        uart_puts("\r\n");
-
-        uart_puts("Puls: ");
-        uart_puts(bpm_buffer);
-        uart_puts("\r\n");
     } else {
         LCD_WriteString("Masurare esuata");
         LCD_SetCursor(1, 0);
         LCD_WriteString("Reincercare...  ");
         uart_puts("HX710B: masurare esuata\r\n");
     }
-
-    _delay_ms(1000);
+    menu_option = 2;
+    while (menu_option == 2) {
+        _delay_ms(100);
+    }
+    _delay_ms(500);
 }

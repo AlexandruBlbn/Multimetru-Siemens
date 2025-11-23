@@ -31,13 +31,13 @@
 #define HX710B_FILTRU_MARIME           8
 #define HX710B_OSC_THRESHOLD_KPA       0.2f
 #define HX710B_MIN_PULSE_INTERVAL_MS   200
-#define HX710B_INFLATE_TARGET_KPA      40.0f   // Initial inflation target (kPa)
-#define HX710B_INFLATE_SAFETY_KPA      40.2f   // Absolute safety threshold (kPa)
-#define HX710B_RELEASE_PRESSURE_KPA    8.0f
-#define HX710B_POST_INFLATE_SETTLE_MS  70
+#define HX710B_INFLATE_TARGET_KPA      26.0f   // Redus la 195 mmHg (mai confortabil)
+#define HX710B_INFLATE_SAFETY_KPA      28.0f   // Safety limit
+#define HX710B_RELEASE_PRESSURE_KPA    5.0f    // Masuram pana la 37 mmHg
+#define HX710B_POST_INFLATE_SETTLE_MS  2000    // 2 secunde pauza pentru stabilizare
 #define HX710B_SAMPLE_INTERVAL_MS      5
-#define HX710B_INFLATE_MAX_LOOPS       250
-#define HX710B_DEF_SAMPLE_COUNT        130
+#define HX710B_INFLATE_MAX_LOOPS       500
+#define HX710B_DEF_SAMPLE_COUNT        2000    // Marit considerabil pentru a prinde toata dezumflarea
 
 //================================================================================================================================================
 // Basic functions - Communication with HX710B pressure sensor

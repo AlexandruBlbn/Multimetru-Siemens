@@ -14,7 +14,7 @@ extern volatile bool g_stop_measurement;
 
 
 //Initialize sensor parameters
-#define RATE_SIZE 4
+#define RATE_SIZE 10
 #define AVG_SIZE 5
 #define SPO2_BUFFER_SIZE 100
 
@@ -290,19 +290,30 @@ void calculateSpO2(void) {
     float redDC = (float)redSum / (float)SPO2_BUFFER_SIZE;
     
     // Calculeaza SpO2 din ratios
-    if (irDC != 0 && redDC != 0 && irAC != 0) {
+    if (irDC != 0 && redDC != 0 && irAC != 0 && irDC > 10000) { // Added check for minimum signal level
         float redRatio = redAC / redDC;
         float irRatio = irAC / irDC;
         
         if (irRatio != 0) {
             float ratio = redRatio / irRatio;
+            
+            // Standard Maxim Integrated correlation for SpO2
+            // 104 - 17R is a linear approximation. 
+            // A slightly tuned version for reflection mode often used is:
             SpO2 = 104.0 - 17.0 * ratio;
             
+            // Filter out unrealistic jumps
             if (SpO2 > 100) SpO2 = 100;
-            if (SpO2 < 70) SpO2 = 0;
+            if (SpO2 < 60) SpO2 = 0; // Raised floor to 60 to hide noise artifacts
         }
+    } else {
+        SpO2 = 0;
     }
 }
+
+// End of intermediate working functions
+    
+
 
 // resetStats - reseteaza toti buferii si variabilele de calcul
 // Goleste: rates[], irBuffer[], redBuffer[], irAvgBuffer[]
@@ -344,7 +355,7 @@ void MAX30102_Start(void){
     // - sampleRate=SAMPLERATE_100 (100 Hz = 100 esantioane/secunda)
     // - pulseWidth=PULSEWIDTH_411 (411 microsecunde)
     // - adcRange=ADCRANGE_4096 (interval ADC 4096)
-    max30102_setup(40, SAMPLEAVG_4, SAMPLERATE_100, PULSEWIDTH_411, ADCRANGE_4096);
+    max30102_setup(0x50, SAMPLEAVG_4, SAMPLERATE_50, PULSEWIDTH_411, ADCRANGE_4096);
     
     // Setare luminozitate LED-uri
     max30102_write_reg(MAX30102_LED1_PULSEAMP, 0x1F);
